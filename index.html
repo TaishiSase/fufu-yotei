@@ -27,8 +27,8 @@
         <h1 class="app-title">夫婦の共有予定帳</h1>
       </div>
       <div class="view-tabs">
-        <button class="view-tab active" data-view="month">月</button>
-        <button class="view-tab" data-view="week">週</button>
+        <button class="view-tab" data-view="month">月</button>
+        <button class="view-tab active" data-view="week">週</button>
       </div>
     </header>
 
@@ -48,7 +48,7 @@
     </div>
 
     <!-- Month View -->
-    <div id="monthView" class="cal-section">
+    <div id="monthView" class="cal-section hidden">
       <div class="dow-header">
         <span class="dow-sun">日</span>
         <span>月</span><span>火</span><span>水</span><span>木</span><span>金</span>
@@ -58,7 +58,7 @@
     </div>
 
     <!-- Week View -->
-    <div id="weekView" class="cal-section hidden">
+    <div id="weekView" class="cal-section">
       <div class="week-scroll">
         <div id="weekGrid" class="week-grid"></div>
       </div>
@@ -95,6 +95,20 @@
       </div>
       <div class="modal-body">
         <div class="modal-date-badge" id="modalDateDisplay"></div>
+
+        <!-- 複数日トグル -->
+        <div class="multiday-toggle-row">
+          <label class="toggle-row">
+            <input type="checkbox" id="multiDayToggle" class="toggle-check">
+            <span class="toggle-label-text">日をまたぐ（出張など）</span>
+          </label>
+        </div>
+
+        <!-- 終了日（日をまたぐON時） -->
+        <div id="dateEndRow" class="form-section hidden">
+          <div class="form-label">終了日</div>
+          <input type="date" id="dateEndInput" class="date-input">
+        </div>
 
         <div class="form-section">
           <div class="form-label">だれ？</div>

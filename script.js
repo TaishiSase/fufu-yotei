@@ -2,9 +2,9 @@
 
 // ===== 定数 =====
 var MEMBERS = {
-  papa:   { label: 'パパ',  color: '#5BA3D0', bg: 'rgba(91,163,208,0.16)' },
-  mama:   { label: 'ママ',  color: '#E8748A', bg: 'rgba(232,116,138,0.16)' },
-  kotone: { label: '琴音',  color: '#67B899', bg: 'rgba(103,184,153,0.16)' },
+  papa:   { label: 'パパ',  color: '#3B8FC0', bg: 'rgba(59,143,192,0.10)' },
+  mama:   { label: 'ママ',  color: '#D45C78', bg: 'rgba(212,92,120,0.10)' },
+  kotone: { label: '琴音',  color: '#3A9B77', bg: 'rgba(58,155,119,0.10)' },
 };
 
 var EVENT_TYPES = [
@@ -15,6 +15,7 @@ var EVENT_TYPES = [
   { id: '出張',           emoji: '✈️' },
   { id: '飲み会',         emoji: '🍻' },
   { id: '保育園イベント', emoji: '🎒' },
+  { id: '会社休み',       emoji: '🌴' },
   { id: 'custom',         emoji: '✏️', label: '自由記述' },
 ];
 
@@ -30,23 +31,24 @@ var DAYS_JA = ['日', '月', '火', '水', '木', '金', '土'];
 
 // ===== 状態 =====
 var db = null;
-var view = 'month';
+var view = 'week'; // デフォルトは週表示
 var navDate = new Date();
 var schedules = [];
 
 // 追加モーダル状態
-var addDate = null;
-var addMember = null;
+var addDate     = null;
+var addDateEnd  = null; // 終了日（日をまたぐ場合）
+var addMember   = null;
 var addEventType = null;
-var addTimeType = 'all_day';
+var addTimeType  = 'all_day';
 
 // 詳細モーダル状態
 var activeSchedule = null;
 
 // ===== ユーティリティ =====
 function dateStr(d) {
-  var y = d.getFullYear();
-  var m = String(d.getMonth() + 1).padStart(2, '0');
+  var y   = d.getFullYear();
+  var m   = String(d.getMonth() + 1).padStart(2, '0');
   var day = String(d.getDate()).padStart(2, '0');
   return y + '-' + m + '-' + day;
 }
@@ -58,6 +60,11 @@ function parseDate(s) {
 
 function formatDateJa(d) {
   return (d.getMonth() + 1) + '月' + d.getDate() + '日（' + DAYS_JA[d.getDay()] + '）';
+}
+
+function formatDateShort(s) {
+  var p = s.split('-');
+  return (+p[1]) + '/' + (+p[2]);
 }
 
 function isToday(d) {
@@ -99,6 +106,11 @@ function getTimeLabel(s) {
   }
 }
 
+function getDateRangeLabel(s) {
+  if (!s.date_end || s.date_end === s.date) return formatDateJa(parseDate(s.date));
+  return formatDateJa(parseDate(s.date)) + ' 〜 ' + formatDateJa(parseDate(s.date_end));
+}
+
 function getWeekStart(d) {
   var result = new Date(d);
   result.setDate(result.getDate() - result.getDay());
@@ -106,13 +118,19 @@ function getWeekStart(d) {
   return result;
 }
 
+// 日付 ds がスケジュール s の範囲に含まれるか（複数日対応）
+function eventCoversDate(s, ds) {
+  if (!s.date_end || s.date_end === s.date) return s.date === ds;
+  return s.date <= ds && s.date_end >= ds;
+}
+
 function getSchedulesForDate(ds) {
-  return schedules.filter(function (s) { return s.date === ds; });
+  return schedules.filter(function (s) { return eventCoversDate(s, ds); });
 }
 
 // ===== データ =====
 async function loadSchedules() {
-  var year = navDate.getFullYear();
+  var year  = navDate.getFullYear();
   var month = navDate.getMonth();
   var start, end;
 
@@ -122,7 +140,7 @@ async function loadSchedules() {
   } else {
     var ws = getWeekStart(navDate);
     start  = new Date(ws);
-    start.setDate(start.getDate() - 14);
+    start.setDate(start.getDate() - 21); // 3週間前まで（複数日イベント対応）
     end    = new Date(ws);
     end.setDate(end.getDate() + 21);
   }
@@ -130,8 +148,8 @@ async function loadSchedules() {
   try {
     var r = await db.from('schedules')
       .select('*')
-      .gte('date', dateStr(start))
-      .lte('date', dateStr(end))
+      .lte('date', dateStr(end))       // 開始日が表示範囲の終了日以前
+      .gte('date', dateStr(start))     // 開始日が表示範囲の開始日以後（buffer込み）
       .order('date')
       .order('created_at');
     if (!r.error) schedules = r.data || [];
@@ -166,8 +184,8 @@ function renderMonth() {
   var grid = document.getElementById('monthGrid');
   grid.innerHTML = '';
 
-  var year  = navDate.getFullYear();
-  var month = navDate.getMonth();
+  var year        = navDate.getFullYear();
+  var month       = navDate.getMonth();
   var firstDow    = new Date(year, month, 1).getDay();
   var daysInMonth = new Date(year, month + 1, 0).getDate();
 
@@ -276,7 +294,7 @@ function renderWeek() {
       cell.dataset.member = member;
 
       var cellScheds = schedules.filter(function (s) {
-        return s.date === ds && s.member === member;
+        return s.member === member && eventCoversDate(s, ds);
       });
 
       cellScheds.forEach(function (s) {
@@ -286,7 +304,14 @@ function renderWeek() {
         chip.style.background = MEMBERS[member].bg;
         chip.style.color       = MEMBERS[member].color;
         chip.style.borderColor = MEMBERS[member].color + '44';
-        chip.textContent = disp.emoji + ' ' + disp.label;
+
+        // 複数日イベントは日付範囲を短縮表示
+        var chipLabel = disp.emoji + ' ' + disp.label;
+        if (s.date_end && s.date_end !== s.date) {
+          chipLabel += ' (' + formatDateShort(s.date) + '〜' + formatDateShort(s.date_end) + ')';
+        }
+        chip.textContent = chipLabel;
+
         (function (s) {
           chip.addEventListener('click', function (e) {
             e.stopPropagation();
@@ -339,8 +364,14 @@ function openDayModal(ds) {
 
     var info = document.createElement('div');
     info.className = 'day-event-info';
+
+    var labelText = disp.emoji + ' ' + disp.label;
+    if (s.date_end && s.date_end !== s.date) {
+      labelText += '（〜' + formatDateJa(parseDate(s.date_end)) + '）';
+    }
+
     info.innerHTML =
-      '<span class="day-event-label">' + disp.emoji + ' ' + esc(disp.label) + '</span>' +
+      '<span class="day-event-label">' + labelText + '</span>' +
       '<span class="day-event-meta">' + esc(member.label) + ' · ' + esc(tl) + '</span>';
     row.appendChild(info);
 
@@ -348,7 +379,7 @@ function openDayModal(ds) {
       var badge = document.createElement('span');
       badge.className = 'day-event-badge';
       badge.textContent = '✓';
-      badge.style.color = '#67B899';
+      badge.style.color = '#3A9B77';
       row.appendChild(badge);
     }
     if (s.wants_discussion) {
@@ -383,11 +414,21 @@ function closeDayModal() {
 // ===== 追加モーダル =====
 function openAddModal(ds, member) {
   addDate      = ds;
+  addDateEnd   = null;
   addMember    = member || null;
   addEventType = null;
   addTimeType  = 'all_day';
 
   document.getElementById('modalDateDisplay').textContent = formatDateJa(parseDate(ds));
+
+  // 複数日リセット
+  var toggle = document.getElementById('multiDayToggle');
+  toggle.checked = false;
+  document.getElementById('dateEndRow').classList.add('hidden');
+  document.getElementById('dateEndInput').value = '';
+  document.getElementById('dateEndInput').min   = ds;
+
+  // その他リセット
   document.getElementById('customLabelInput').value = '';
   document.getElementById('customLabelInput').classList.add('hidden');
   document.getElementById('customTimeRow').classList.add('hidden');
@@ -461,6 +502,11 @@ async function saveSchedule() {
     if (!customLabel) { showToast('内容を入力してください'); return; }
   }
 
+  // 終了日の検証
+  if (addDateEnd && addDateEnd < addDate) {
+    showToast('終了日は開始日以降にしてください'); return;
+  }
+
   var timeStart = null, timeEnd = null;
   if (addTimeType === 'custom') {
     timeStart = document.getElementById('timeStartInput').value || null;
@@ -469,6 +515,7 @@ async function saveSchedule() {
 
   var record = {
     date:             addDate,
+    date_end:         addDateEnd || null,
     member:           addMember,
     event_type:       addEventType,
     event_label:      customLabel,
@@ -489,7 +536,6 @@ async function saveSchedule() {
     render();
     showToast('保存しました ✓');
 
-    // 詳細モーダルを開いてLINEボタンへ誘導
     setTimeout(function () { openDetailModal(r.data); }, 320);
   } catch (e) {
     console.error('saveSchedule error:', e);
@@ -512,10 +558,10 @@ function closeDetailModal() {
 }
 
 function renderDetailBody(s, body) {
-  var member = MEMBERS[s.member] || { label: s.member, color: '#999', bg: 'rgba(150,150,150,0.15)' };
+  var member = MEMBERS[s.member] || { label: s.member, color: '#999', bg: 'rgba(150,150,150,0.10)' };
   var disp   = getEventDisplay(s);
   var tl     = getTimeLabel(s);
-  var d      = parseDate(s.date);
+  var dateLabel = getDateRangeLabel(s);
 
   // イベントヘッダー
   var header = document.createElement('div');
@@ -527,7 +573,7 @@ function renderDetailBody(s, body) {
       '<div class="detail-event-name" style="color:' + member.color + '">' +
         esc(member.label) + ' · ' + esc(disp.label) +
       '</div>' +
-      '<div class="detail-event-meta">' + esc(formatDateJa(d)) + '<br>' + esc(tl) + '</div>' +
+      '<div class="detail-event-meta">' + esc(dateLabel) + '<br>' + esc(tl) + '</div>' +
     '</div>';
   body.appendChild(header);
 
@@ -556,7 +602,6 @@ function renderDetailBody(s, body) {
   var actionRow = document.createElement('div');
   actionRow.className = 'action-row';
 
-  // 確認ボタン
   var confirmBtn = document.createElement('button');
   confirmBtn.className = 'action-btn' + (s.confirmed ? ' confirmed' : '');
   confirmBtn.innerHTML = s.confirmed ? '✓ 確認済み' : '✓ 確認した';
@@ -565,7 +610,6 @@ function renderDetailBody(s, body) {
   })(s);
   actionRow.appendChild(confirmBtn);
 
-  // 話し合いボタン
   var discussBtn = document.createElement('button');
   discussBtn.className = 'action-btn' + (s.wants_discussion ? ' discussing' : '');
   discussBtn.innerHTML = '💬 話し合いたい';
@@ -574,7 +618,7 @@ function renderDetailBody(s, body) {
 
   body.appendChild(actionRow);
 
-  // コメントフォーム（話し合いたいを押したら表示）
+  // コメントフォーム
   var commentFormWrap = document.createElement('div');
   commentFormWrap.id = 'commentFormWrap';
   commentFormWrap.className = 'comment-form hidden';
@@ -667,7 +711,6 @@ async function onSaveComment(s, body) {
     showToast('コメントを保存しました');
     render();
 
-    // コメント保存後にLINE共有を促す
     setTimeout(function () { shareToLine(r.data, true); }, 200);
   } catch (e) {
     showToast('保存に失敗しました');
@@ -697,18 +740,18 @@ function updateCache(updated) {
 
 // ===== LINE 共有 =====
 function shareToLine(s, isDiscuss) {
-  var disp   = getEventDisplay(s);
-  var tl     = getTimeLabel(s);
-  var d      = parseDate(s.date);
-  var mLabel = MEMBERS[s.member] ? MEMBERS[s.member].label : s.member;
+  var disp      = getEventDisplay(s);
+  var tl        = getTimeLabel(s);
+  var dateLabel = getDateRangeLabel(s);
+  var mLabel    = MEMBERS[s.member] ? MEMBERS[s.member].label : s.member;
   var text;
 
   if (isDiscuss) {
     text = '💬 話し合いたい！\n' +
-      mLabel + '｜' + formatDateJa(d) + ' ' + disp.emoji + ' ' + disp.label + '\n' +
+      mLabel + '｜' + dateLabel + ' ' + disp.emoji + ' ' + disp.label + '\n' +
       (s.comment ? '「' + s.comment + '」' : '');
   } else {
-    text = '📅 ' + mLabel + '｜' + formatDateJa(d) + '\n' +
+    text = '📅 ' + mLabel + '｜' + dateLabel + '\n' +
       disp.emoji + ' ' + disp.label + '（' + tl + '）\n' +
       '夫婦の共有予定帳に登録しました';
   }
@@ -768,6 +811,24 @@ function setupEventListeners() {
   document.getElementById('addCloseBtn').addEventListener('click', closeAddModal);
   document.getElementById('saveBtn').addEventListener('click', saveSchedule);
 
+  // 複数日トグル
+  document.getElementById('multiDayToggle').addEventListener('change', function () {
+    var row = document.getElementById('dateEndRow');
+    if (this.checked) {
+      row.classList.remove('hidden');
+      document.getElementById('dateEndInput').focus();
+    } else {
+      row.classList.add('hidden');
+      addDateEnd = null;
+      document.getElementById('dateEndInput').value = '';
+    }
+  });
+
+  // 終了日選択
+  document.getElementById('dateEndInput').addEventListener('change', function () {
+    addDateEnd = this.value || null;
+  });
+
   // メンバーボタン
   document.querySelectorAll('.member-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
@@ -797,6 +858,12 @@ async function init() {
   setupEventListeners();
   await loadSchedules();
   render();
+}
+
+function render() {
+  updateCalTitle();
+  if (view === 'month') renderMonth();
+  else                   renderWeek();
 }
 
 init();
