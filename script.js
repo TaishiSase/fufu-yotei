@@ -305,12 +305,7 @@ function renderWeek() {
         chip.style.color       = MEMBERS[member].color;
         chip.style.borderColor = MEMBERS[member].color + '44';
 
-        // 複数日イベントは日付範囲を短縮表示
-        var chipLabel = disp.emoji + ' ' + disp.label;
-        if (s.date_end && s.date_end !== s.date) {
-          chipLabel += ' (' + formatDateShort(s.date) + '〜' + formatDateShort(s.date_end) + ')';
-        }
-        chip.textContent = chipLabel;
+        chip.textContent = disp.emoji + ' ' + disp.label;
 
         (function (s) {
           chip.addEventListener('click', function (e) {
