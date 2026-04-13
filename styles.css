@@ -265,9 +265,9 @@ body {
 
 .week-ev-layer {
   display: grid; grid-template-columns: repeat(7, 1fr);
-  grid-auto-rows: auto; gap: 3px;
+  grid-auto-rows: auto; align-items: start; gap: 3px;
   padding: 5px 0; position: relative; z-index: 1;
-  pointer-events: none; min-height: 76px;
+  pointer-events: none;
 }
 .week-event-bar {
   pointer-events: all;
