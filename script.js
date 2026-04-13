@@ -569,7 +569,6 @@ async function saveSchedule() {
     var r;
     if (editingSchedule) {
       // 編集：UPDATE
-      record.updated_at = new Date().toISOString();
       r = await db.from('schedules')
         .update(record)
         .eq('id', editingSchedule.id)
