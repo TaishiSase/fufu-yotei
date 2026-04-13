@@ -2,10 +2,10 @@
 
 // ===== 定数 =====
 var MEMBERS = {
-  all:    { label: 'みんな', color: '#9B6DFF', bg: 'rgba(155,109,255,0.10)' },
+  all:    { label: 'みんな', color: '#3A9B77', bg: 'rgba(58,155,119,0.10)' },
   papa:   { label: 'パパ',  color: '#3B8FC0', bg: 'rgba(59,143,192,0.10)' },
   mama:   { label: 'ママ',  color: '#D45C78', bg: 'rgba(212,92,120,0.10)' },
-  kotone: { label: '琴音',  color: '#3A9B77', bg: 'rgba(58,155,119,0.10)' },
+  kotone: { label: '琴音',  color: '#E8782A', bg: 'rgba(232,120,42,0.10)' },
 };
 
 var EVENT_TYPES = [
@@ -252,6 +252,8 @@ function renderWeek() {
     d.setDate(d.getDate() + i);
     days.push(d);
   }
+  var weekStart = dateStr(days[0]);
+  var weekEnd   = dateStr(days[6]);
 
   // ヘッダー行
   var headerRow = document.createElement('div');
@@ -275,7 +277,7 @@ function renderWeek() {
   });
   grid.appendChild(headerRow);
 
-  // フィルターに応じたメンバー行
+  // フィルターに応じたメンバー行（バーレイアウト）
   getVisibleMembers().forEach(function (member) {
     var row = document.createElement('div');
     row.className = 'week-member-row';
@@ -285,50 +287,75 @@ function renderWeek() {
     mlabel.textContent = MEMBERS[member].label;
     row.appendChild(mlabel);
 
+    // 7日分のラッパー
+    var wrapper = document.createElement('div');
+    wrapper.className = 'week-days-wrapper';
+
+    // 背景セル（クリックで予定追加）
+    var bgGrid = document.createElement('div');
+    bgGrid.className = 'week-bg-grid';
     days.forEach(function (d) {
-      var ds    = dateStr(d);
-      var dow   = d.getDay();
-      var isTod = isToday(d);
-      var isWk  = dow === 0 || dow === 6;
-
+      var ds  = dateStr(d);
+      var dow = d.getDay();
       var cell = document.createElement('div');
-      cell.className = 'week-cell' +
-        (isTod ? ' today-col' : '') +
-        (isWk  ? ' weekend-col' : '');
-      cell.dataset.date   = ds;
-      cell.dataset.member = member;
+      cell.className = 'week-bg-cell' +
+        (isToday(d)              ? ' today-col'   : '') +
+        (dow === 0 || dow === 6  ? ' weekend-col' : '');
+      (function (ds) {
+        cell.addEventListener('click', function () { openAddModal(ds, member); });
+      })(ds);
+      bgGrid.appendChild(cell);
+    });
+    wrapper.appendChild(bgGrid);
 
-      var cellScheds = schedules.filter(function (s) {
-        return s.member === member && eventCoversDate(s, ds);
+    // イベントバー層
+    var evLayer = document.createElement('div');
+    evLayer.className = 'week-ev-layer';
+
+    var memberEvents = schedules.filter(function (s) {
+      return s.member === member && days.some(function (d) {
+        return eventCoversDate(s, dateStr(d));
       });
-
-      cellScheds.forEach(function (s) {
-        var disp = getEventDisplay(s);
-        var chip = document.createElement('div');
-        chip.className = 'week-chip';
-        chip.style.background = MEMBERS[member].bg;
-        chip.style.color       = MEMBERS[member].color;
-        chip.style.borderColor = MEMBERS[member].color + '44';
-        chip.textContent = disp.emoji + ' ' + disp.label;
-
-        (function (s) {
-          chip.addEventListener('click', function (e) {
-            e.stopPropagation();
-            openDetailModal(s);
-          });
-        })(s);
-        cell.appendChild(chip);
-      });
-
-      (function (ds, member) {
-        cell.addEventListener('click', function () {
-          openAddModal(ds, member);
-        });
-      })(ds, member);
-
-      row.appendChild(cell);
     });
 
+    memberEvents.forEach(function (s) {
+      var eventEnd    = s.date_end || s.date;
+      var clipStart   = s.date > weekStart ? s.date : weekStart;
+      var clipEnd     = eventEnd < weekEnd  ? eventEnd : weekEnd;
+      var colStart    = days.findIndex(function (d) { return dateStr(d) === clipStart; });
+      var colEnd      = days.findIndex(function (d) { return dateStr(d) === clipEnd;   });
+      if (colStart === -1) return;
+      if (colEnd   === -1) colEnd = 6;
+
+      var disp = getEventDisplay(s);
+      var bar  = document.createElement('div');
+      bar.className         = 'week-event-bar';
+      bar.style.gridColumn  = (colStart + 1) + ' / ' + (colEnd + 2);
+      bar.style.background  = MEMBERS[member].bg;
+      bar.style.color       = MEMBERS[member].color;
+      bar.style.borderColor = MEMBERS[member].color + '55';
+
+      // 週をまたぐ場合は端を角丸なしにして「続き」を示す
+      var rL = s.date >= weekStart ? '4px' : '2px';
+      var rR = eventEnd <= weekEnd  ? '4px' : '2px';
+      bar.style.borderRadius = rL + ' ' + rR + ' ' + rR + ' ' + rL;
+      if (s.date < weekStart) bar.style.borderLeft = '3px solid ' + MEMBERS[member].color;
+      if (eventEnd > weekEnd)  bar.style.borderRight = '3px solid ' + MEMBERS[member].color;
+
+      bar.textContent = disp.emoji + ' ' + disp.label;
+
+      (function (s) {
+        bar.addEventListener('click', function (e) {
+          e.stopPropagation();
+          openDetailModal(s);
+        });
+      })(s);
+
+      evLayer.appendChild(bar);
+    });
+
+    wrapper.appendChild(evLayer);
+    row.appendChild(wrapper);
     grid.appendChild(row);
   });
 }

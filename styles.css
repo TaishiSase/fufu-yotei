@@ -12,18 +12,18 @@
   --muted:  rgba(30,30,45,0.45);
   --sheet:  #faf8f6;
 
-  --all:        #9B6DFF;
-  --all-bg:     rgba(155,109,255,0.10);
-  --all-border: rgba(155,109,255,0.32);
+  --all:        #3A9B77;
+  --all-bg:     rgba(58,155,119,0.10);
+  --all-border: rgba(58,155,119,0.32);
   --papa:        #3B8FC0;
   --papa-bg:     rgba(59,143,192,0.10);
   --papa-border: rgba(59,143,192,0.32);
   --mama:        #D45C78;
   --mama-bg:     rgba(212,92,120,0.10);
   --mama-border: rgba(212,92,120,0.32);
-  --kotone:        #3A9B77;
-  --kotone-bg:     rgba(58,155,119,0.10);
-  --kotone-border: rgba(58,155,119,0.32);
+  --kotone:        #E8782A;
+  --kotone-bg:     rgba(232,120,42,0.10);
+  --kotone-border: rgba(232,120,42,0.32);
 }
 
 body {
@@ -233,8 +233,8 @@ body {
 .week-day-label.today-col .wday-num { color: white; }
 
 .week-member-row {
-  display: grid; grid-template-columns: 40px repeat(7, 1fr);
-  gap: 3px; margin-bottom: 3px;
+  display: grid; grid-template-columns: 40px 1fr;
+  gap: 3px; margin-bottom: 4px; align-items: stretch;
 }
 .week-member-label {
   display: flex; align-items: center; justify-content: center;
@@ -246,26 +246,38 @@ body {
 .week-member-label.mama   { color: var(--mama);   background: var(--mama-bg); }
 .week-member-label.kotone { color: var(--kotone); background: var(--kotone-bg); }
 
-.week-cell {
+/* ===== Week Bar Layout ===== */
+.week-days-wrapper {
+  position: relative; min-height: 44px;
+}
+.week-bg-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 3px; position: absolute; inset: 0;
+}
+.week-bg-cell {
   background: var(--card); border: 1px solid var(--border); border-radius: 8px;
-  height: 76px; padding: 4px;
-  display: flex; flex-direction: column; gap: 2px;
-  overflow: hidden;
-  cursor: pointer; transition: box-shadow 0.15s;
+  cursor: pointer; transition: background 0.15s;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
-.week-cell:active { background: rgba(0,0,0,0.03); }
-.week-cell.today-col { border-color: var(--papa); border-width: 2px; }
-.week-cell.weekend-col { background: rgba(0,0,0,0.02); }
+.week-bg-cell:active { background: rgba(0,0,0,0.03); }
+.week-bg-cell.today-col { border-color: var(--papa); border-width: 2px; }
+.week-bg-cell.weekend-col { background: rgba(0,0,0,0.02); }
 
-.week-chip {
-  font-size: 9px; padding: 2px 4px; border-radius: 4px;
-  line-height: 1.3; cursor: pointer;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  border: 1px solid transparent;
+.week-ev-layer {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  grid-auto-rows: auto; gap: 3px;
+  padding: 5px 0; position: relative; z-index: 1;
+  pointer-events: none; min-height: 44px;
+}
+.week-event-bar {
+  pointer-events: all;
+  font-size: 10px; padding: 3px 6px;
+  border: 1px solid transparent; line-height: 1.4;
+  cursor: pointer; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
   transition: opacity 0.1s;
 }
-.week-chip:active { opacity: 0.7; }
+.week-event-bar:active { opacity: 0.7; }
 
 /* ===== FAB ===== */
 .fab {
