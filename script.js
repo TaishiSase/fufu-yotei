@@ -49,7 +49,7 @@ var pendingFilter = null;
 function openPwModal(filter) {
   pendingFilter = filter;
   document.getElementById('pwModalTitle').textContent =
-    filter === 'papa_private' ? '🔑 パパのプライベート' : '🔑 ママのプライベート';
+    filter === 'papa_private' ? '🔒 パパのプライベート' : '🔒 ママのプライベート';
   document.getElementById('pwInput').value = '';
   document.getElementById('pwModal').classList.remove('hidden');
   setTimeout(function () { document.getElementById('pwInput').focus(); }, 80);
