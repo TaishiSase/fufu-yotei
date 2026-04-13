@@ -42,9 +42,17 @@
 
     <!-- Legend -->
     <div class="legend">
+      <span class="legend-dot all-dot"></span><span class="legend-label">みんな</span>
       <span class="legend-dot papa-dot"></span><span class="legend-label">パパ</span>
       <span class="legend-dot mama-dot"></span><span class="legend-label">ママ</span>
       <span class="legend-dot kotone-dot"></span><span class="legend-label">琴音</span>
+    </div>
+
+    <!-- Filter -->
+    <div class="filter-row" id="filterRow">
+      <button class="filter-btn active" data-filter="all">みんな</button>
+      <button class="filter-btn" data-filter="papa">パパのみ</button>
+      <button class="filter-btn" data-filter="mama">ママのみ</button>
     </div>
 
     <!-- Month View -->
@@ -90,7 +98,7 @@
     <div class="modal-sheet">
       <div class="modal-drag-handle"></div>
       <div class="modal-header">
-        <h2 class="modal-title">予定を追加</h2>
+        <h2 class="modal-title" id="addModalTitle">予定を追加</h2>
         <button class="modal-close-btn" id="addCloseBtn">✕</button>
       </div>
       <div class="modal-body">
@@ -113,6 +121,7 @@
         <div class="form-section">
           <div class="form-label">だれ？</div>
           <div class="member-selector" id="memberSelector">
+            <button class="member-btn" data-member="all">みんな</button>
             <button class="member-btn" data-member="papa">パパ</button>
             <button class="member-btn" data-member="mama">ママ</button>
             <button class="member-btn" data-member="kotone">琴音</button>

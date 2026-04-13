@@ -12,6 +12,9 @@
   --muted:  rgba(30,30,45,0.45);
   --sheet:  #faf8f6;
 
+  --all:        #9B6DFF;
+  --all-bg:     rgba(155,109,255,0.10);
+  --all-border: rgba(155,109,255,0.32);
   --papa:        #3B8FC0;
   --papa-bg:     rgba(59,143,192,0.10);
   --papa-border: rgba(59,143,192,0.32);
@@ -126,10 +129,28 @@ body {
 .legend-dot {
   width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex-shrink: 0;
 }
+.all-dot    { background: var(--all); }
 .papa-dot   { background: var(--papa); }
 .mama-dot   { background: var(--mama); }
 .kotone-dot { background: var(--kotone); }
 .legend-label { font-size: 11px; color: var(--muted); margin-right: 4px; }
+
+/* ===== Filter Row ===== */
+.filter-row {
+  display: flex; gap: 6px; margin-bottom: 14px;
+}
+.filter-btn {
+  flex: 1;
+  border: 1px solid var(--border); background: var(--card);
+  color: var(--muted); font-size: 12px; font-weight: 700;
+  padding: 8px 6px; border-radius: 10px; cursor: pointer;
+  transition: all 0.15s; font-family: inherit; text-align: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.filter-btn:active { transform: scale(0.96); }
+.filter-btn.active {
+  background: var(--all-bg); border-color: var(--all-border); color: var(--all);
+}
 
 /* ===== Calendar Section ===== */
 .cal-section { width: 100%; max-width: 520px; }
@@ -220,6 +241,7 @@ body {
   font-size: 11px; font-weight: 700; border-radius: 8px; padding: 6px 2px;
   writing-mode: vertical-rl; text-orientation: mixed;
 }
+.week-member-label.all    { color: var(--all);    background: var(--all-bg); }
 .week-member-label.papa   { color: var(--papa);   background: var(--papa-bg); }
 .week-member-label.mama   { color: var(--mama);   background: var(--mama-bg); }
 .week-member-label.kotone { color: var(--kotone); background: var(--kotone-bg); }
@@ -363,7 +385,7 @@ body {
 .date-input:focus { border-color: var(--papa); }
 
 /* Member selector */
-.member-selector { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.member-selector { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 .member-btn {
   border: 2px solid var(--border); background: var(--card);
   color: var(--muted); font-size: 14px; font-weight: 700;
@@ -372,6 +394,7 @@ body {
   box-shadow: 0 1px 3px rgba(0,0,0,0.06);
 }
 .member-btn:active { transform: scale(0.95); }
+.member-btn.selected[data-member="all"]    { background: var(--all-bg);    border-color: var(--all-border);    color: var(--all); }
 .member-btn.selected[data-member="papa"]   { background: var(--papa-bg);   border-color: var(--papa-border);   color: var(--papa); }
 .member-btn.selected[data-member="mama"]   { background: var(--mama-bg);   border-color: var(--mama-border);   color: var(--mama); }
 .member-btn.selected[data-member="kotone"] { background: var(--kotone-bg); border-color: var(--kotone-border); color: var(--kotone); }
@@ -512,8 +535,18 @@ body {
 }
 .line-btn:active { opacity: 0.85; }
 
+.detail-action-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+}
+.edit-btn {
+  padding: 12px; cursor: pointer; font-family: inherit;
+  border: 1px solid var(--papa-border); border-radius: 12px;
+  background: var(--papa-bg); color: var(--papa);
+  font-size: 13px; font-weight: 600; transition: all 0.15s;
+}
+.edit-btn:active { opacity: 0.8; }
 .delete-btn {
-  width: 100%; padding: 12px; cursor: pointer; font-family: inherit;
+  padding: 12px; cursor: pointer; font-family: inherit;
   border: 1px solid rgba(200,50,50,0.20); border-radius: 12px;
   background: rgba(200,50,50,0.05); color: rgba(180,60,60,0.75);
   font-size: 13px; transition: all 0.15s;

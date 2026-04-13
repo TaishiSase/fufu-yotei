@@ -2,6 +2,7 @@
 
 // ===== 定数 =====
 var MEMBERS = {
+  all:    { label: 'みんな', color: '#9B6DFF', bg: 'rgba(155,109,255,0.10)' },
   papa:   { label: 'パパ',  color: '#3B8FC0', bg: 'rgba(59,143,192,0.10)' },
   mama:   { label: 'ママ',  color: '#D45C78', bg: 'rgba(212,92,120,0.10)' },
   kotone: { label: '琴音',  color: '#3A9B77', bg: 'rgba(58,155,119,0.10)' },
@@ -34,13 +35,15 @@ var db = null;
 var view = 'week'; // デフォルトは週表示
 var navDate = new Date();
 var schedules = [];
+var filterMember = 'all'; // 表示フィルター: 'all' | 'papa' | 'mama'
 
-// 追加モーダル状態
-var addDate     = null;
-var addDateEnd  = null; // 終了日（日をまたぐ場合）
-var addMember   = null;
+// 追加/編集モーダル状態
+var addDate      = null;
+var addDateEnd   = null;
+var addMember    = null;
 var addEventType = null;
 var addTimeType  = 'all_day';
+var editingSchedule = null; // 編集中のスケジュール（nullなら新規追加）
 
 // 詳細モーダル状態
 var activeSchedule = null;
@@ -60,11 +63,6 @@ function parseDate(s) {
 
 function formatDateJa(d) {
   return (d.getMonth() + 1) + '月' + d.getDate() + '日（' + DAYS_JA[d.getDay()] + '）';
-}
-
-function formatDateShort(s) {
-  var p = s.split('-');
-  return (+p[1]) + '/' + (+p[2]);
 }
 
 function isToday(d) {
@@ -128,6 +126,13 @@ function getSchedulesForDate(ds) {
   return schedules.filter(function (s) { return eventCoversDate(s, ds); });
 }
 
+// フィルターに応じて表示するメンバー行を返す
+function getVisibleMembers() {
+  if (filterMember === 'papa') return ['all', 'papa', 'kotone'];
+  if (filterMember === 'mama') return ['all', 'mama', 'kotone'];
+  return ['all', 'papa', 'mama', 'kotone'];
+}
+
 // ===== データ =====
 async function loadSchedules() {
   var year  = navDate.getFullYear();
@@ -148,8 +153,8 @@ async function loadSchedules() {
   try {
     var r = await db.from('schedules')
       .select('*')
-      .lte('date', dateStr(end))       // 開始日が表示範囲の終了日以前
-      .gte('date', dateStr(start))     // 開始日が表示範囲の開始日以後（buffer込み）
+      .lte('date', dateStr(end))
+      .gte('date', dateStr(start))
       .order('date')
       .order('created_at');
     if (!r.error) schedules = r.data || [];
@@ -216,7 +221,7 @@ function renderMonth() {
     if (dayScheds.length > 0) {
       var dotsEl = document.createElement('div');
       dotsEl.className = 'day-dots';
-      ['papa', 'mama', 'kotone'].forEach(function (m) {
+      Object.keys(MEMBERS).forEach(function (m) {
         var count = dayScheds.filter(function (s) { return s.member === m; }).length;
         for (var k = 0; k < Math.min(count, 2); k++) {
           var dot = document.createElement('div');
@@ -270,8 +275,8 @@ function renderWeek() {
   });
   grid.appendChild(headerRow);
 
-  // メンバー行
-  ['papa', 'mama', 'kotone'].forEach(function (member) {
+  // フィルターに応じたメンバー行
+  getVisibleMembers().forEach(function (member) {
     var row = document.createElement('div');
     row.className = 'week-member-row';
 
@@ -304,7 +309,6 @@ function renderWeek() {
         chip.style.background = MEMBERS[member].bg;
         chip.style.color       = MEMBERS[member].color;
         chip.style.borderColor = MEMBERS[member].color + '44';
-
         chip.textContent = disp.emoji + ' ' + disp.label;
 
         (function (s) {
@@ -406,14 +410,16 @@ function closeDayModal() {
   document.getElementById('dayModal').classList.add('hidden');
 }
 
-// ===== 追加モーダル =====
+// ===== 追加/編集モーダル =====
 function openAddModal(ds, member) {
+  editingSchedule = null;
   addDate      = ds;
   addDateEnd   = null;
   addMember    = member || null;
   addEventType = null;
   addTimeType  = 'all_day';
 
+  document.getElementById('addModalTitle').textContent = '予定を追加';
   document.getElementById('modalDateDisplay').textContent = formatDateJa(parseDate(ds));
 
   // 複数日リセット
@@ -440,8 +446,49 @@ function openAddModal(ds, member) {
   document.getElementById('addModal').classList.remove('hidden');
 }
 
+function openEditModal(s) {
+  editingSchedule = s;
+  addDate      = s.date;
+  addDateEnd   = s.date_end || null;
+  addMember    = s.member;
+  addEventType = s.event_type;
+  addTimeType  = s.time_type || 'all_day';
+
+  document.getElementById('addModalTitle').textContent = '予定を編集';
+  document.getElementById('modalDateDisplay').textContent = formatDateJa(parseDate(s.date));
+
+  // 複数日
+  var toggle = document.getElementById('multiDayToggle');
+  var hasEnd = !!(s.date_end && s.date_end !== s.date);
+  toggle.checked = hasEnd;
+  document.getElementById('dateEndRow').classList.toggle('hidden', !hasEnd);
+  document.getElementById('dateEndInput').value = s.date_end || '';
+  document.getElementById('dateEndInput').min   = s.date;
+
+  // 自由記述
+  var ci = document.getElementById('customLabelInput');
+  ci.value = (s.event_type === 'custom' ? s.event_label || '' : '');
+  ci.classList.toggle('hidden', s.event_type !== 'custom');
+
+  // 時間指定
+  var cr = document.getElementById('customTimeRow');
+  cr.classList.toggle('hidden', s.time_type !== 'custom');
+  document.getElementById('timeStartInput').value = s.time_start || '';
+  document.getElementById('timeEndInput').value   = s.time_end   || '';
+
+  // メンバーボタン
+  document.querySelectorAll('.member-btn').forEach(function (btn) {
+    btn.classList.toggle('selected', btn.dataset.member === addMember);
+  });
+
+  renderEventTypeGrid();
+  renderTimeTypeGrid();
+  document.getElementById('addModal').classList.remove('hidden');
+}
+
 function closeAddModal() {
   document.getElementById('addModal').classList.add('hidden');
+  editingSchedule = null;
 }
 
 function renderEventTypeGrid() {
@@ -497,7 +544,6 @@ async function saveSchedule() {
     if (!customLabel) { showToast('内容を入力してください'); return; }
   }
 
-  // 終了日の検証
   if (addDateEnd && addDateEnd < addDate) {
     showToast('終了日は開始日以降にしてください'); return;
   }
@@ -517,19 +563,31 @@ async function saveSchedule() {
     time_type:        addTimeType,
     time_start:       timeStart,
     time_end:         timeEnd,
-    confirmed:        false,
-    wants_discussion: false,
-    comment:          null,
   };
 
   try {
-    var r = await db.from('schedules').insert(record).select().single();
+    var r;
+    if (editingSchedule) {
+      // 編集：UPDATE
+      record.updated_at = new Date().toISOString();
+      r = await db.from('schedules')
+        .update(record)
+        .eq('id', editingSchedule.id)
+        .select().single();
+    } else {
+      // 新規：INSERT
+      record.confirmed        = false;
+      record.wants_discussion = false;
+      record.comment          = null;
+      r = await db.from('schedules').insert(record).select().single();
+    }
+
     if (r.error) throw r.error;
 
-    schedules.push(r.data);
+    updateCache(r.data);
     closeAddModal();
     render();
-    showToast('保存しました ✓');
+    showToast(editingSchedule ? '更新しました ✓' : '保存しました ✓');
 
     setTimeout(function () { openDetailModal(r.data); }, 320);
   } catch (e) {
@@ -593,7 +651,7 @@ function renderDetailBody(s, body) {
     body.appendChild(cdisplay);
   }
 
-  // アクションボタン行
+  // アクションボタン行（確認・話し合い）
   var actionRow = document.createElement('div');
   actionRow.className = 'action-row';
 
@@ -643,14 +701,30 @@ function renderDetailBody(s, body) {
   })(s);
   body.appendChild(lineBtn);
 
-  // 削除ボタン
+  // 編集・削除ボタン行
+  var detailActionRow = document.createElement('div');
+  detailActionRow.className = 'detail-action-row';
+
+  var editBtn = document.createElement('button');
+  editBtn.className = 'edit-btn';
+  editBtn.textContent = '✏️ 編集する';
+  (function (s) {
+    editBtn.addEventListener('click', function () {
+      closeDetailModal();
+      openEditModal(s);
+    });
+  })(s);
+  detailActionRow.appendChild(editBtn);
+
   var deleteBtn = document.createElement('button');
   deleteBtn.className = 'delete-btn';
   deleteBtn.textContent = '削除する';
   (function (s) {
     deleteBtn.addEventListener('click', function () { onDelete(s); });
   })(s);
-  body.appendChild(deleteBtn);
+  detailActionRow.appendChild(deleteBtn);
+
+  body.appendChild(detailActionRow);
 }
 
 async function onConfirm(s, body) {
@@ -833,6 +907,16 @@ function setupEventListeners() {
     });
   });
 
+  // フィルターボタン
+  document.querySelectorAll('.filter-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      filterMember = this.dataset.filter;
+      document.querySelectorAll('.filter-btn').forEach(function (b) { b.classList.remove('active'); });
+      this.classList.add('active');
+      render();
+    });
+  });
+
   // 詳細モーダル
   document.getElementById('detailOverlay').addEventListener('click', closeDetailModal);
   document.getElementById('detailCloseBtn').addEventListener('click', closeDetailModal);
@@ -853,12 +937,6 @@ async function init() {
   setupEventListeners();
   await loadSchedules();
   render();
-}
-
-function render() {
-  updateCalTitle();
-  if (view === 'month') renderMonth();
-  else                   renderWeek();
 }
 
 init();
