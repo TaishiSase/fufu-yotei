@@ -146,6 +146,7 @@ body {
   padding: 8px 6px; border-radius: 10px; cursor: pointer;
   transition: all 0.15s; font-family: inherit; text-align: center;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  white-space: nowrap;
 }
 .filter-btn:active { transform: scale(0.96); }
 .filter-btn.active[data-filter="all"]          { background: var(--all-bg);  border-color: var(--all-border);  color: var(--all); }
