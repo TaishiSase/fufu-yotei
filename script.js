@@ -393,7 +393,12 @@ function renderWeek() {
       bar.style.gridColumn  = (colStart + 1) + ' / ' + (colEnd + 2);
       bar.style.background  = MEMBERS[member].bg;
       bar.style.color       = MEMBERS[member].color;
-      bar.style.borderColor = MEMBERS[member].color + '55';
+      if (s.confirmed) {
+        bar.classList.add('confirmed');
+        bar.style.borderColor = MEMBERS[member].color;
+      } else {
+        bar.style.borderColor = MEMBERS[member].color + '55';
+      }
 
       // 週をまたぐ場合は端を角丸なしにして「続き」を示す
       var rL = s.date >= weekStart ? '4px' : '2px';

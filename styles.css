@@ -278,6 +278,10 @@ body {
   transition: opacity 0.1s;
 }
 .week-event-bar:active { opacity: 0.7; }
+.week-event-bar.confirmed {
+  border-width: 2px;
+  font-weight: 700;
+}
 
 /* ===== FAB ===== */
 .fab {
