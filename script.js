@@ -182,11 +182,14 @@ function getVisibleMembers() {
 }
 
 // フィルターに応じた可視イベントを返す
+function isEventVisible(s) {
+  if (filterMember === 'all') return !s.is_private;
+  // プライベートビューはみんなの予定 + 自分のプライベート予定を表示
+  return !s.is_private || s.is_private === filterMember;
+}
 function getVisibleSchedulesForDate(ds) {
   return schedules.filter(function (s) {
-    if (!eventCoversDate(s, ds)) return false;
-    if (filterMember === 'all') return !s.is_private;
-    return s.is_private === filterMember;
+    return eventCoversDate(s, ds) && isEventVisible(s);
   });
 }
 
@@ -372,8 +375,7 @@ function renderWeek() {
     var memberEvents = schedules.filter(function (s) {
       if (s.member !== member) return false;
       if (!days.some(function (d) { return eventCoversDate(s, dateStr(d)); })) return false;
-      if (filterMember === 'all') return !s.is_private;
-      return s.is_private === filterMember;
+      return isEventVisible(s);
     });
 
     memberEvents.forEach(function (s) {
