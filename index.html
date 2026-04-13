@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=4">
+  <link rel="stylesheet" href="styles.css?v=5">
 </head>
 <body>
   <div class="bg-orbs">
@@ -51,8 +51,8 @@
     <!-- Filter -->
     <div class="filter-row" id="filterRow">
       <button class="filter-btn active" data-filter="all">みんな</button>
-      <button class="filter-btn" data-filter="papa">パパのみ</button>
-      <button class="filter-btn" data-filter="mama">ママのみ</button>
+      <button class="filter-btn filter-lock" data-filter="papa_private">🔑 パパ</button>
+      <button class="filter-btn filter-lock" data-filter="mama_private">🔑 ママ</button>
     </div>
 
     <!-- Month View -->
@@ -162,10 +162,26 @@
     </div>
   </div>
 
+  <!-- ===== Password Modal ===== -->
+  <div id="pwModal" class="modal-wrap hidden">
+    <div class="modal-overlay" id="pwOverlay"></div>
+    <div class="modal-sheet">
+      <div class="modal-drag-handle"></div>
+      <div class="modal-header">
+        <h2 class="modal-title" id="pwModalTitle">🔑 パスワード</h2>
+        <button class="modal-close-btn" id="pwCloseBtn">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="password" id="pwInput" class="custom-input" placeholder="パスワードを入力" inputmode="numeric" autocomplete="off">
+        <button class="primary-btn" id="pwConfirmBtn">開く</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== Toast ===== -->
   <div class="toast" id="toast"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="script.js?v=2"></script>
+  <script src="script.js?v=5"></script>
 </body>
 </html>

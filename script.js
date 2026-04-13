@@ -30,12 +30,62 @@ var TIME_TYPES = [
 
 var DAYS_JA = ['日', '月', '火', '水', '木', '金', '土'];
 
+// ===== プライベートモード =====
+var PASSWORDS = { papa_private: '060728', mama_private: '060804' };
+var PW_DURATION = 7 * 24 * 60 * 60 * 1000; // 1週間
+
+function isUnlocked(filter) {
+  try {
+    var ts = localStorage.getItem('unlock_' + filter);
+    return ts && (Date.now() - parseInt(ts, 10) < PW_DURATION);
+  } catch (e) { return false; }
+}
+function setUnlocked(filter) {
+  try { localStorage.setItem('unlock_' + filter, String(Date.now())); } catch (e) {}
+}
+
+var pendingFilter = null;
+
+function openPwModal(filter) {
+  pendingFilter = filter;
+  document.getElementById('pwModalTitle').textContent =
+    filter === 'papa_private' ? '🔑 パパのプライベート' : '🔑 ママのプライベート';
+  document.getElementById('pwInput').value = '';
+  document.getElementById('pwModal').classList.remove('hidden');
+  setTimeout(function () { document.getElementById('pwInput').focus(); }, 80);
+}
+function closePwModal() {
+  document.getElementById('pwModal').classList.add('hidden');
+  pendingFilter = null;
+}
+function confirmPassword() {
+  if (!pendingFilter) return;
+  var input = document.getElementById('pwInput').value;
+  if (input === PASSWORDS[pendingFilter]) {
+    setUnlocked(pendingFilter);
+    var f = pendingFilter;
+    closePwModal();
+    applyFilter(f);
+  } else {
+    showToast('パスワードが違います');
+    document.getElementById('pwInput').value = '';
+    document.getElementById('pwInput').focus();
+  }
+}
+function applyFilter(f) {
+  filterMember = f;
+  document.querySelectorAll('.filter-btn').forEach(function (b) { b.classList.remove('active'); });
+  var btn = document.querySelector('.filter-btn[data-filter="' + f + '"]');
+  if (btn) btn.classList.add('active');
+  render();
+}
+
 // ===== 状態 =====
 var db = null;
 var view = 'week'; // デフォルトは週表示
 var navDate = new Date();
 var schedules = [];
-var filterMember = 'all'; // 表示フィルター: 'all' | 'papa' | 'mama'
+var filterMember = 'all'; // 'all' | 'papa_private' | 'mama_private'
 
 // 追加/編集モーダル状態
 var addDate      = null;
@@ -126,11 +176,18 @@ function getSchedulesForDate(ds) {
   return schedules.filter(function (s) { return eventCoversDate(s, ds); });
 }
 
-// フィルターに応じて表示するメンバー行を返す
+// すべてのモードで全メンバー行を表示
 function getVisibleMembers() {
-  if (filterMember === 'papa') return ['all', 'papa', 'kotone'];
-  if (filterMember === 'mama') return ['all', 'mama', 'kotone'];
   return ['all', 'papa', 'mama', 'kotone'];
+}
+
+// フィルターに応じた可視イベントを返す
+function getVisibleSchedulesForDate(ds) {
+  return schedules.filter(function (s) {
+    if (!eventCoversDate(s, ds)) return false;
+    if (filterMember === 'all') return !s.is_private;
+    return s.is_private === filterMember;
+  });
 }
 
 // ===== データ =====
@@ -217,7 +274,7 @@ function renderMonth() {
     numEl.textContent = d;
     cell.appendChild(numEl);
 
-    var dayScheds = getSchedulesForDate(ds);
+    var dayScheds = getVisibleSchedulesForDate(ds);
     if (dayScheds.length > 0) {
       var dotsEl = document.createElement('div');
       dotsEl.className = 'day-dots';
@@ -313,9 +370,10 @@ function renderWeek() {
     evLayer.className = 'week-ev-layer';
 
     var memberEvents = schedules.filter(function (s) {
-      return s.member === member && days.some(function (d) {
-        return eventCoversDate(s, dateStr(d));
-      });
+      if (s.member !== member) return false;
+      if (!days.some(function (d) { return eventCoversDate(s, dateStr(d)); })) return false;
+      if (filterMember === 'all') return !s.is_private;
+      return s.is_private === filterMember;
     });
 
     memberEvents.forEach(function (s) {
@@ -362,7 +420,7 @@ function renderWeek() {
 
 // ===== 日付シート =====
 function openDayModal(ds) {
-  var dayScheds = getSchedulesForDate(ds);
+  var dayScheds = getVisibleSchedulesForDate(ds);
 
   if (dayScheds.length === 0) {
     openAddModal(ds, null);
@@ -590,6 +648,7 @@ async function saveSchedule() {
     time_type:        addTimeType,
     time_start:       timeStart,
     time_end:         timeEnd,
+    is_private:       (filterMember === 'all') ? null : filterMember,
   };
 
   try {
@@ -936,11 +995,20 @@ function setupEventListeners() {
   // フィルターボタン
   document.querySelectorAll('.filter-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      filterMember = this.dataset.filter;
-      document.querySelectorAll('.filter-btn').forEach(function (b) { b.classList.remove('active'); });
-      this.classList.add('active');
-      render();
+      var f = this.dataset.filter;
+      if (f === 'papa_private' || f === 'mama_private') {
+        if (!isUnlocked(f)) { openPwModal(f); return; }
+      }
+      applyFilter(f);
     });
+  });
+
+  // パスワードモーダル
+  document.getElementById('pwOverlay').addEventListener('click', closePwModal);
+  document.getElementById('pwCloseBtn').addEventListener('click', closePwModal);
+  document.getElementById('pwConfirmBtn').addEventListener('click', confirmPassword);
+  document.getElementById('pwInput').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') confirmPassword();
   });
 
   // 詳細モーダル

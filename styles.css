@@ -148,9 +148,9 @@ body {
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 .filter-btn:active { transform: scale(0.96); }
-.filter-btn.active {
-  background: var(--all-bg); border-color: var(--all-border); color: var(--all);
-}
+.filter-btn.active[data-filter="all"]          { background: var(--all-bg);  border-color: var(--all-border);  color: var(--all); }
+.filter-btn.active[data-filter="papa_private"] { background: var(--papa-bg); border-color: var(--papa-border); color: var(--papa); }
+.filter-btn.active[data-filter="mama_private"] { background: var(--mama-bg); border-color: var(--mama-border); color: var(--mama); }
 
 /* ===== Calendar Section ===== */
 .cal-section { width: 100%; max-width: 520px; }
