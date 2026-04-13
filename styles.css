@@ -248,7 +248,7 @@ body {
 
 /* ===== Week Bar Layout ===== */
 .week-days-wrapper {
-  position: relative; min-height: 44px;
+  position: relative; min-height: 76px;
 }
 .week-bg-grid {
   display: grid; grid-template-columns: repeat(7, 1fr);
@@ -267,7 +267,7 @@ body {
   display: grid; grid-template-columns: repeat(7, 1fr);
   grid-auto-rows: auto; gap: 3px;
   padding: 5px 0; position: relative; z-index: 1;
-  pointer-events: none; min-height: 44px;
+  pointer-events: none; min-height: 76px;
 }
 .week-event-bar {
   pointer-events: all;
