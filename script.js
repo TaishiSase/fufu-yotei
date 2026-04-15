@@ -10,15 +10,19 @@ var MEMBERS = {
 
 var EVENT_TYPES = [
   { id: '在宅',           emoji: '🏠' },
-  { id: '早朝出社',       emoji: '🌅' },
-  { id: '出社',           emoji: '🏢' },
-  { id: '遅晩出社',       emoji: '🌙' },
+  { id: '早朝全日出社',   emoji: '🌅' },
+  { id: '全日出社',       emoji: '🏢' },
+  { id: 'AM出社',         emoji: '🌞' },
+  { id: 'PM出社',         emoji: '🌙' },
   { id: '出張',           emoji: '✈️' },
   { id: '飲み会',         emoji: '🍻' },
   { id: '保育園イベント', emoji: '🎒' },
   { id: '会社休み',       emoji: '🌴' },
   { id: 'custom',         emoji: '✏️', label: '自由記述' },
 ];
+
+var OFFICE_TYPES = ['早朝全日出社', '全日出社', 'AM出社', 'PM出社'];
+var WORK_TYPES   = ['早朝全日出社', '全日出社', 'AM出社', 'PM出社', '出張'];
 
 var TIME_TYPES = [
   { id: 'all_day',   label: '終日' },
@@ -95,6 +99,12 @@ var addEventType = null;
 var addTimeType  = 'all_day';
 var editingSchedule = null; // 編集中のスケジュール（nullなら新規追加）
 
+// 出社・出張 追加情報
+var addOfficeLocation = null; // '豊田' | 'MLS' | '丸の内' | 'その他'
+var addTripDest       = null; // '東京本社' | '東富士研究所' | '自由記述'
+var addReturnTime     = null; // '18:30' 形式
+var addNeedsDinner    = false;
+
 // 詳細モーダル状態
 var activeSchedule = null;
 
@@ -152,6 +162,16 @@ function getTimeLabel(s) {
     case 'custom':    return (s.time_start || '') + '〜' + (s.time_end || '');
     default:          return '';
   }
+}
+
+function getLocationText(s) {
+  if (OFFICE_TYPES.indexOf(s.event_type) !== -1 && s.office_location) {
+    return s.office_location;
+  }
+  if (s.event_type === '出張' && s.trip_destination) {
+    return s.trip_destination;
+  }
+  return null;
 }
 
 function getDateRangeLabel(s) {
@@ -407,7 +427,8 @@ function renderWeek() {
       if (s.date < weekStart) bar.style.borderLeft = '3px solid ' + MEMBERS[member].color;
       if (eventEnd > weekEnd)  bar.style.borderRight = '3px solid ' + MEMBERS[member].color;
 
-      bar.textContent = disp.emoji + ' ' + disp.label;
+      var loc = getLocationText(s);
+      bar.textContent = disp.emoji + ' ' + disp.label + (loc ? '（' + loc + '）' : '');
 
       (function (s) {
         bar.addEventListener('click', function (e) {
@@ -461,9 +482,12 @@ function openDayModal(ds) {
       labelText += '（〜' + formatDateJa(parseDate(s.date_end)) + '）';
     }
 
+    var locText = getLocationText(s);
+    var metaStr = esc(member.label) + ' · ' + esc(tl);
+    if (locText) metaStr += ' · ' + esc(locText);
     info.innerHTML =
       '<span class="day-event-label">' + labelText + '</span>' +
-      '<span class="day-event-meta">' + esc(member.label) + ' · ' + esc(tl) + '</span>';
+      '<span class="day-event-meta">' + metaStr + '</span>';
     row.appendChild(info);
 
     if (s.confirmed) {
@@ -528,6 +552,17 @@ function openAddModal(ds, member) {
   document.getElementById('timeStartInput').value = '';
   document.getElementById('timeEndInput').value   = '';
 
+  // 出社・出張フィールドリセット
+  addOfficeLocation = null;
+  addTripDest       = null;
+  addReturnTime     = null;
+  addNeedsDinner    = false;
+  document.getElementById('officeLocationRow').classList.add('hidden');
+  document.getElementById('tripDestRow').classList.add('hidden');
+  document.getElementById('workExtraRow').classList.add('hidden');
+  document.getElementById('officeLocationCustom').value = '';
+  document.getElementById('tripDestCustom').value = '';
+
   // メンバーボタン
   document.querySelectorAll('.member-btn').forEach(function (btn) {
     btn.classList.toggle('selected', btn.dataset.member === addMember);
@@ -573,8 +608,25 @@ function openEditModal(s) {
     btn.classList.toggle('selected', btn.dataset.member === addMember);
   });
 
+  // 出社先・出張先プリセット判定
+  var OFFICE_PRESETS = ['豊田', 'MLS', '丸の内'];
+  var TRIP_PRESETS   = ['東京本社', '東富士研究所'];
+  if (OFFICE_TYPES.indexOf(s.event_type) !== -1 && s.office_location) {
+    addOfficeLocation = OFFICE_PRESETS.indexOf(s.office_location) !== -1 ? s.office_location : 'その他';
+  } else {
+    addOfficeLocation = null;
+  }
+  if (s.event_type === '出張' && s.trip_destination) {
+    addTripDest = TRIP_PRESETS.indexOf(s.trip_destination) !== -1 ? s.trip_destination : '自由記述';
+  } else {
+    addTripDest = null;
+  }
+  addReturnTime  = s.return_time  || null;
+  addNeedsDinner = !!s.needs_dinner;
+
   renderEventTypeGrid();
   renderTimeTypeGrid();
+  updateWorkFields();
   document.getElementById('addModal').classList.remove('hidden');
 }
 
@@ -593,6 +645,10 @@ function renderEventTypeGrid() {
     btn.innerHTML = '<span>' + type.emoji + '</span>' + esc(type.label || type.id);
     btn.addEventListener('click', function () {
       addEventType = this.dataset.type;
+      addOfficeLocation = null;
+      addTripDest = null;
+      document.getElementById('officeLocationCustom').value = '';
+      document.getElementById('tripDestCustom').value = '';
       renderEventTypeGrid();
       var ci = document.getElementById('customLabelInput');
       if (addEventType === 'custom') {
@@ -601,6 +657,7 @@ function renderEventTypeGrid() {
       } else {
         ci.classList.add('hidden');
       }
+      updateWorkFields();
     });
     grid.appendChild(btn);
   });
@@ -625,6 +682,53 @@ function renderTimeTypeGrid() {
   });
 }
 
+function updateWorkFields() {
+  var isOffice = addEventType && OFFICE_TYPES.indexOf(addEventType) !== -1;
+  var isTrip   = addEventType === '出張';
+  var isWork   = addEventType && WORK_TYPES.indexOf(addEventType) !== -1;
+
+  document.getElementById('officeLocationRow').classList.toggle('hidden', !isOffice);
+  document.getElementById('tripDestRow').classList.toggle('hidden', !isTrip);
+  document.getElementById('workExtraRow').classList.toggle('hidden', !isWork);
+
+  if (isOffice) {
+    renderOfficeLocSelector();
+    // 編集時: カスタム出社先を復元
+    if (addOfficeLocation === 'その他') {
+      var stored = editingSchedule ? (editingSchedule.office_location || '') : '';
+      if (['豊田', 'MLS', '丸の内'].indexOf(stored) === -1) {
+        document.getElementById('officeLocationCustom').value = stored;
+      }
+    }
+  }
+  if (isTrip) {
+    renderTripDestSelector();
+    // 編集時: カスタム出張先を復元
+    if (addTripDest === '自由記述') {
+      var stored2 = editingSchedule ? (editingSchedule.trip_destination || '') : '';
+      if (['東京本社', '東富士研究所'].indexOf(stored2) === -1) {
+        document.getElementById('tripDestCustom').value = stored2;
+      }
+    }
+  }
+  document.getElementById('returnTimeInput').value    = addReturnTime || '';
+  document.getElementById('needsDinnerCheck').checked = addNeedsDinner;
+}
+
+function renderOfficeLocSelector() {
+  document.querySelectorAll('#officeLocationSelector .location-btn').forEach(function (btn) {
+    btn.classList.toggle('selected', btn.dataset.loc === addOfficeLocation);
+  });
+  document.getElementById('officeLocationCustom').classList.toggle('hidden', addOfficeLocation !== 'その他');
+}
+
+function renderTripDestSelector() {
+  document.querySelectorAll('#tripDestSelector .location-btn').forEach(function (btn) {
+    btn.classList.toggle('selected', btn.dataset.dest === addTripDest);
+  });
+  document.getElementById('tripDestCustom').classList.toggle('hidden', addTripDest !== '自由記述');
+}
+
 async function saveSchedule() {
   if (!addDate)      { showToast('日付が選択されていません'); return; }
   if (!addMember)    { showToast('だれかを選んでください'); return; }
@@ -646,6 +750,34 @@ async function saveSchedule() {
     timeEnd   = document.getElementById('timeEndInput').value   || null;
   }
 
+  // 出社先
+  var officeLoc = null;
+  if (OFFICE_TYPES.indexOf(addEventType) !== -1) {
+    if (addOfficeLocation === 'その他') {
+      officeLoc = document.getElementById('officeLocationCustom').value.trim() || null;
+    } else {
+      officeLoc = addOfficeLocation || null;
+    }
+  }
+
+  // 出張先
+  var tripDest = null;
+  if (addEventType === '出張') {
+    if (addTripDest === '自由記述') {
+      tripDest = document.getElementById('tripDestCustom').value.trim() || null;
+    } else {
+      tripDest = addTripDest || null;
+    }
+  }
+
+  // 帰宅予想時刻・晩飯
+  var returnTime  = null;
+  var needsDinner = null;
+  if (WORK_TYPES.indexOf(addEventType) !== -1) {
+    returnTime  = document.getElementById('returnTimeInput').value || null;
+    needsDinner = document.getElementById('needsDinnerCheck').checked;
+  }
+
   var record = {
     date:             addDate,
     date_end:         addDateEnd || null,
@@ -656,6 +788,10 @@ async function saveSchedule() {
     time_start:       timeStart,
     time_end:         timeEnd,
     is_private:       (filterMember === 'all') ? null : filterMember,
+    office_location:  officeLoc,
+    trip_destination: tripDest,
+    return_time:      returnTime,
+    needs_dinner:     needsDinner,
   };
 
   try {
@@ -721,6 +857,37 @@ function renderDetailBody(s, body) {
       '<div class="detail-event-meta">' + esc(dateLabel) + '<br>' + esc(tl) + '</div>' +
     '</div>';
   body.appendChild(header);
+
+  // 出社先 / 出張先 / 帰宅時刻 / 晩飯
+  var loc    = getLocationText(s);
+  var isWork = s.event_type && WORK_TYPES.indexOf(s.event_type) !== -1;
+  if (loc || (isWork && (s.return_time || s.needs_dinner === true || s.needs_dinner === false))) {
+    var workInfo = document.createElement('div');
+    workInfo.className = 'detail-work-info';
+    if (loc) {
+      var locLabel = OFFICE_TYPES.indexOf(s.event_type) !== -1 ? '出社先' : '出張先';
+      workInfo.innerHTML +=
+        '<div class="detail-info-row">' +
+          '<span class="detail-info-label">' + locLabel + '</span>' +
+          '<span class="detail-info-value">' + esc(loc) + '</span>' +
+        '</div>';
+    }
+    if (s.return_time) {
+      workInfo.innerHTML +=
+        '<div class="detail-info-row">' +
+          '<span class="detail-info-label">帰宅予想</span>' +
+          '<span class="detail-info-value">' + esc(s.return_time) + '</span>' +
+        '</div>';
+    }
+    if (isWork && (s.needs_dinner === true || s.needs_dinner === false)) {
+      workInfo.innerHTML +=
+        '<div class="detail-info-row">' +
+          '<span class="detail-info-label">晩飯</span>' +
+          '<span class="detail-info-value">' + (s.needs_dinner ? '🍚 いる' : 'いらない') + '</span>' +
+        '</div>';
+    }
+    body.appendChild(workInfo);
+  }
 
   // 確認済みバッジ
   if (s.confirmed) {
@@ -907,13 +1074,16 @@ function shareToLine(s, isDiscuss) {
   var mLabel    = MEMBERS[s.member] ? MEMBERS[s.member].label : s.member;
   var text;
 
+  var loc = getLocationText(s);
   if (isDiscuss) {
     text = '💬 話し合いたい！\n' +
-      mLabel + '｜' + dateLabel + ' ' + disp.emoji + ' ' + disp.label + '\n' +
+      mLabel + '｜' + dateLabel + ' ' + disp.emoji + ' ' + disp.label + (loc ? '（' + loc + '）' : '') + '\n' +
       (s.comment ? '「' + s.comment + '」' : '');
   } else {
     text = '📅 ' + mLabel + '｜' + dateLabel + '\n' +
-      disp.emoji + ' ' + disp.label + '（' + tl + '）\n' +
+      disp.emoji + ' ' + disp.label + (loc ? '（' + loc + '）' : '') + '（' + tl + '）\n' +
+      (s.return_time ? '帰宅予想: ' + s.return_time + '\n' : '') +
+      (s.needs_dinner ? '🍚 晩飯いる\n' : '') +
       '夫婦の共有予定帳に登録しました';
   }
 
@@ -997,6 +1167,29 @@ function setupEventListeners() {
       document.querySelectorAll('.member-btn').forEach(function (b) { b.classList.remove('selected'); });
       this.classList.add('selected');
     });
+  });
+
+  // 出社先ボタン
+  document.querySelectorAll('#officeLocationSelector .location-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      addOfficeLocation = this.dataset.loc;
+      renderOfficeLocSelector();
+    });
+  });
+  // 出張先ボタン
+  document.querySelectorAll('#tripDestSelector .location-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      addTripDest = this.dataset.dest;
+      renderTripDestSelector();
+    });
+  });
+  // 帰宅予想時刻
+  document.getElementById('returnTimeInput').addEventListener('change', function () {
+    addReturnTime = this.value || null;
+  });
+  // 晩飯チェック
+  document.getElementById('needsDinnerCheck').addEventListener('change', function () {
+    addNeedsDinner = this.checked;
   });
 
   // フィルターボタン

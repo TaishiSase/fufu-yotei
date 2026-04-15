@@ -8,7 +8,9 @@ const PASSWORDS = { papa: '060728', mama: '060804' };
 const MEMBER_LABELS = { all: 'みんな', papa: 'パパ', mama: 'ママ', kotone: '琴音' };
 
 const EVENT_EMOJIS = {
-  '在宅': '🏠', '早朝出社': '🌅', '出社': '🏢', '遅晩出社': '🌙',
+  '在宅': '🏠',
+  '早朝全日出社': '🌅', '全日出社': '🏢', 'AM出社': '🌞', 'PM出社': '🌙',
+  '早朝出社': '🌅', '出社': '🏢', '遅晩出社': '🌙', // 旧種別との互換
   '出張': '✈️', '飲み会': '🍻', '保育園イベント': '🎒', '会社休み': '🌴',
   'custom': '✏️',
 };
@@ -129,6 +131,11 @@ module.exports = async function handler(req, res) {
         : timeLabels[s.time_type] || '';
       if (tl) descParts.push('時間: ' + tl);
     }
+    if (s.office_location) descParts.push('出社先: ' + s.office_location);
+    if (s.trip_destination) descParts.push('出張先: ' + s.trip_destination);
+    if (s.return_time) descParts.push('帰宅予想: ' + s.return_time);
+    if (s.needs_dinner === true) descParts.push('🍚 晩飯いる');
+    if (s.needs_dinner === false) descParts.push('晩飯なし');
     if (s.comment) descParts.push('コメント: ' + s.comment);
     if (s.confirmed) descParts.push('✓ 確認済み');
     if (descParts.length) lines.push('DESCRIPTION:' + esc(descParts.join('\n')));
