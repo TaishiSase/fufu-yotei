@@ -104,6 +104,7 @@ var addOfficeLocation = null; // '豊田' | 'MLS' | '丸の内' | 'その他'
 var addTripDest       = null; // '東京本社' | '東富士研究所' | '自由記述'
 var addReturnTime     = null; // '18:30' 形式
 var addNeedsDinner    = false;
+var addPlace          = null; // 場所・住所（任意）
 
 // 詳細モーダル状態
 var activeSchedule = null;
@@ -171,6 +172,7 @@ function getLocationText(s) {
   if (s.event_type === '出張' && s.trip_destination) {
     return s.trip_destination;
   }
+  if (s.place) return s.place;
   return null;
 }
 
@@ -557,6 +559,8 @@ function openAddModal(ds, member) {
   addTripDest       = null;
   addReturnTime     = null;
   addNeedsDinner    = false;
+  addPlace          = null;
+  document.getElementById('placeInput').value = '';
   document.getElementById('officeLocationRow').classList.add('hidden');
   document.getElementById('tripDestRow').classList.add('hidden');
   document.getElementById('workExtraRow').classList.add('hidden');
@@ -623,6 +627,8 @@ function openEditModal(s) {
   }
   addReturnTime  = s.return_time  || null;
   addNeedsDinner = !!s.needs_dinner;
+  addPlace       = s.place || null;
+  document.getElementById('placeInput').value = s.place || '';
 
   renderEventTypeGrid();
   renderTimeTypeGrid();
@@ -792,6 +798,7 @@ async function saveSchedule() {
     trip_destination: tripDest,
     return_time:      returnTime,
     needs_dinner:     needsDinner,
+    place:            document.getElementById('placeInput').value.trim() || null,
   };
 
   try {
@@ -858,12 +865,22 @@ function renderDetailBody(s, body) {
     '</div>';
   body.appendChild(header);
 
-  // 出社先 / 出張先 / 帰宅時刻 / 晩飯
-  var loc    = getLocationText(s);
+  // 場所 / 出社先 / 出張先 / 帰宅時刻 / 晩飯
+  var workLoc = (OFFICE_TYPES.indexOf(s.event_type) !== -1 && s.office_location)
+    ? s.office_location
+    : (s.event_type === '出張' && s.trip_destination ? s.trip_destination : null);
   var isWork = s.event_type && WORK_TYPES.indexOf(s.event_type) !== -1;
-  if (loc || (isWork && (s.return_time || s.needs_dinner === true || s.needs_dinner === false))) {
+  if (s.place || workLoc || (isWork && (s.return_time || s.needs_dinner === true || s.needs_dinner === false))) {
     var workInfo = document.createElement('div');
     workInfo.className = 'detail-work-info';
+    if (s.place) {
+      workInfo.innerHTML +=
+        '<div class="detail-info-row">' +
+          '<span class="detail-info-label">📍 場所</span>' +
+          '<a class="detail-place-link" href="https://maps.google.com/maps?q=' + encodeURIComponent(s.place) + '" target="_blank" rel="noopener">' + esc(s.place) + '</a>' +
+        '</div>';
+    }
+    var loc = workLoc;
     if (loc) {
       var locLabel = OFFICE_TYPES.indexOf(s.event_type) !== -1 ? '出社先' : '出張先';
       workInfo.innerHTML +=

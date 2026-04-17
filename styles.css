@@ -647,3 +647,13 @@ body {
   .day-cell { min-height: 70px; }
   .week-chip { font-size: 10px; }
 }
+
+
+/* ===== 場所リンク ===== */
+.detail-place-link {
+  color: #3A9B77;
+  text-decoration: underline;
+  font-size: 14px;
+  word-break: break-all;
+}
+.detail-place-link:active { opacity: 0.7; }
