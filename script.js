@@ -35,7 +35,6 @@ var TIME_TYPES = [
 var DAYS_JA = ['日', '月', '火', '水', '木', '金', '土'];
 
 // ===== プライベートモード =====
-var PASSWORDS = { papa_private: '060728', mama_private: '060804' };
 var PW_DURATION = 7 * 24 * 60 * 60 * 1000; // 1週間
 
 function isUnlocked(filter) {
@@ -65,7 +64,7 @@ function closePwModal() {
 function confirmPassword() {
   if (!pendingFilter) return;
   var input = document.getElementById('pwInput').value;
-  if (input === PASSWORDS[pendingFilter]) {
+  if (input === (cfg.privatePasswords || {})[pendingFilter]) {
     setUnlocked(pendingFilter);
     var f = pendingFilter;
     closePwModal();
@@ -85,7 +84,8 @@ function applyFilter(f) {
 }
 
 // ===== 状態 =====
-var db = null;
+var cfg = null;
+var db  = null;
 var view = 'week'; // デフォルトは週表示
 var navDate = new Date();
 var schedules = [];
@@ -1234,20 +1234,75 @@ function setupEventListeners() {
 }
 
 // ===== 初期化 =====
+async function startApp() {
+  setupEventListeners();
+  await loadSchedules();
+  render();
+}
+
+var loginMember = null; // 'papa' | 'mama'
+
+async function handleLogin() {
+  var errEl = document.getElementById('loginError');
+  var btn   = document.getElementById('loginBtn');
+  errEl.classList.add('hidden');
+
+  if (!loginMember) {
+    errEl.textContent = 'パパかママを選んでください';
+    errEl.classList.remove('hidden');
+    return;
+  }
+
+  var pw    = document.getElementById('loginInput').value.trim();
+  var email = loginMember === 'papa' ? cfg.papaEmail : cfg.mamaEmail;
+  btn.disabled    = true;
+  btn.textContent = '確認中…';
+
+  var { error } = await db.auth.signInWithPassword({ email: email, password: pw });
+
+  btn.disabled    = false;
+  btn.textContent = 'ログイン';
+  if (error) {
+    errEl.textContent = 'パスワードが違います';
+    errEl.classList.remove('hidden');
+    document.getElementById('loginInput').value = '';
+    document.getElementById('loginInput').focus();
+    return;
+  }
+  document.getElementById('loginScreen').classList.add('hidden');
+  await startApp();
+}
+
 async function init() {
   try {
     var res = await fetch('config.json');
-    var cfg = await res.json();
-    db = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
+    cfg = await res.json();
+    db  = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseKey);
   } catch (e) {
     console.error('Config error:', e);
     showToast('接続エラーが発生しました');
     return;
   }
 
-  setupEventListeners();
-  await loadSchedules();
-  render();
+  document.querySelectorAll('.login-member-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      loginMember = this.dataset.member;
+      document.querySelectorAll('.login-member-btn').forEach(function (b) { b.classList.remove('selected'); });
+      this.classList.add('selected');
+      document.getElementById('loginInput').focus();
+    });
+  });
+  document.getElementById('loginBtn').addEventListener('click', handleLogin);
+  document.getElementById('loginInput').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') handleLogin();
+  });
+
+  var { data: { session } } = await db.auth.getSession();
+  if (!session) {
+    document.getElementById('loginScreen').classList.remove('hidden');
+    return;
+  }
+  await startApp();
 }
 
 init();

@@ -1,4 +1,10 @@
 {
   "supabaseUrl": "https://ueqtnjvdutesnxggcdwb.supabase.co",
-  "supabaseKey": "sb_publishable_-XJHEWb_M7qrIvMeZnC_kA_aiZUQbOL"
+  "supabaseKey": "sb_publishable_-XJHEWb_M7qrIvMeZnC_kA_aiZUQbOL",
+  "papaEmail": "taish.dengel@gmail.com",
+  "mamaEmail": "vv8.shk.4ill@hotmail.co.jp",
+  "privatePasswords": {
+    "papa_private": "0728",
+    "mama_private": "0804"
+  }
 }

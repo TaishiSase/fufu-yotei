@@ -489,6 +489,48 @@ body {
 }
 .outline-btn:active { background: rgba(0,0,0,0.04); }
 
+/* ===== Login Screen ===== */
+.login-screen {
+  position: fixed; inset: 0; z-index: 9000;
+  background: linear-gradient(150deg, #fdf9f5 0%, #f4f0fc 100%);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.login-card {
+  background: #fff;
+  border-radius: 24px;
+  padding: 40px 28px 32px;
+  width: 100%; max-width: 360px;
+  box-shadow: 0 4px 32px rgba(0,0,0,0.10);
+  display: flex; flex-direction: column; gap: 16px;
+  text-align: center;
+}
+.login-icon { font-size: 48px; line-height: 1; }
+.login-title { font-size: 20px; font-weight: 700; color: var(--text); }
+.login-hint { font-size: 13px; color: var(--muted); margin-top: -8px; }
+.login-member-row {
+  display: flex; gap: 12px;
+}
+.login-member-btn {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px; border-radius: 14px;
+  border: 2px solid var(--border); background: var(--card);
+  font-size: 15px; font-weight: 600; color: var(--text);
+  cursor: pointer; font-family: inherit; transition: border-color 0.15s, background 0.15s;
+}
+.login-member-btn.selected { border-color: currentColor; background: rgba(0,0,0,0.04); }
+.login-member-btn#loginPapaBtn.selected { border-color: var(--papa); color: var(--papa); }
+.login-member-btn#loginMamaBtn.selected { border-color: var(--mama); color: var(--mama); }
+.login-member-dot {
+  width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0;
+}
+.login-error {
+  font-size: 13px; color: #e05c75;
+  background: rgba(224,92,117,0.08);
+  border-radius: 8px; padding: 8px 12px;
+  text-align: center;
+}
+
 /* ===== Detail Modal ===== */
 .detail-event-header {
   display: flex; align-items: center; gap: 12px;
