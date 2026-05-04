@@ -6,11 +6,13 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="予定帳">
   <meta name="theme-color" content="#0f0f1a">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
   <title>夫婦の共有予定帳</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=7">
+  <link rel="stylesheet" href="styles.css?v=8">
 </head>
 <body>
   <div class="bg-orbs">
@@ -184,6 +186,39 @@
           <input type="text" id="placeInput" class="custom-input" placeholder="場所の名称や住所を入力">
         </div>
 
+        <!-- 画像添付 -->
+        <div class="form-section">
+          <div class="form-label">📷 画像（任意・複数OK）</div>
+          <input type="file" id="imageFileInput" accept="image/*" multiple class="image-file-input">
+          <label for="imageFileInput" class="image-upload-label">
+            <span class="image-upload-icon">📷</span>
+            <span class="image-upload-text">タップして画像を追加</span>
+          </label>
+          <div id="imageThumbnailRow" class="image-thumbnail-row"></div>
+        </div>
+
+        <!-- リマインド設定 -->
+        <div class="form-section">
+          <label class="toggle-row">
+            <input type="checkbox" id="reminderToggle" class="toggle-check">
+            <span class="toggle-label-text">🔔 リマインドする</span>
+          </label>
+          <div id="reminderSettings" class="reminder-settings hidden">
+            <div class="form-label" style="margin-top:4px;">だれに通知？</div>
+            <div class="reminder-who-row" id="reminderWhoRow">
+              <button class="reminder-who-btn" data-who="papa">パパ</button>
+              <button class="reminder-who-btn" data-who="mama">ママ</button>
+              <button class="reminder-who-btn" data-who="both">両方</button>
+            </div>
+            <div class="form-label" style="margin-top:4px;">いつ通知？（複数可）</div>
+            <div class="reminder-timing-row" id="reminderTimingRow">
+              <button class="reminder-timing-btn selected" data-timing="prev_day">前日夜</button>
+              <button class="reminder-timing-btn" data-timing="morning">当日朝</button>
+              <button class="reminder-timing-btn" data-timing="one_hour">1時間前</button>
+            </div>
+          </div>
+        </div>
+
         <button class="primary-btn" id="saveBtn">保存する</button>
       </div>
     </div>
@@ -239,10 +274,17 @@
     </div>
   </div>
 
+  <!-- ===== Lightbox ===== -->
+  <div id="lightbox" class="lightbox hidden">
+    <div class="lightbox-backdrop" id="lightboxBackdrop"></div>
+    <button class="lightbox-close" id="lightboxClose">✕</button>
+    <img id="lightboxImg" class="lightbox-img" src="" alt="">
+  </div>
+
   <!-- ===== Toast ===== -->
   <div class="toast" id="toast"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="script.js?v=7"></script>
+  <script src="script.js?v=8"></script>
 </body>
 </html>

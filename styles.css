@@ -699,3 +699,76 @@ body {
   word-break: break-all;
 }
 .detail-place-link:active { opacity: 0.7; }
+
+/* ===== 画像アップロード（追加モーダル）===== */
+.image-file-input { display: none; }
+.image-upload-label {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: var(--card); border: 2px dashed var(--border);
+  border-radius: 14px; padding: 16px; cursor: pointer;
+  color: var(--muted); font-size: 13px; font-weight: 600;
+  transition: border-color 0.2s, background 0.2s;
+}
+.image-upload-label:active { background: rgba(0,0,0,0.03); border-color: var(--papa); }
+.image-upload-icon { font-size: 20px; }
+.image-thumbnail-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.thumb-item {
+  position: relative; width: 80px; height: 80px;
+  border-radius: 10px; overflow: hidden;
+  border: 1px solid var(--border); flex-shrink: 0;
+}
+.thumb-item img { width: 100%; height: 100%; object-fit: cover; cursor: pointer; display: block; }
+.thumb-remove {
+  position: absolute; top: 3px; right: 3px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: rgba(0,0,0,0.55); color: white; border: none;
+  font-size: 10px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ===== 詳細モーダル: 画像サムネイル ===== */
+.detail-images { display: flex; gap: 8px; flex-wrap: wrap; }
+.detail-thumb {
+  width: 90px; height: 90px; border-radius: 10px;
+  overflow: hidden; border: 1px solid var(--border); cursor: pointer;
+}
+.detail-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* ===== Lightbox ===== */
+.lightbox {
+  position: fixed; inset: 0; z-index: 9999;
+  display: flex; align-items: center; justify-content: center;
+}
+.lightbox-backdrop {
+  position: absolute; inset: 0; background: rgba(0,0,0,0.92);
+}
+.lightbox-img {
+  position: relative; z-index: 1;
+  max-width: 94vw; max-height: 88vh;
+  object-fit: contain; border-radius: 6px;
+}
+.lightbox-close {
+  position: absolute; top: 20px; right: 20px; z-index: 2;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: rgba(255,255,255,0.18); border: none;
+  color: white; font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-family: inherit;
+}
+
+/* ===== リマインド設定 ===== */
+.reminder-settings { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
+.reminder-who-row, .reminder-timing-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.reminder-who-btn, .reminder-timing-btn {
+  flex: 1; min-width: 64px; padding: 9px 8px;
+  border: 1px solid var(--border); border-radius: 12px;
+  background: var(--card); color: var(--muted);
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  font-family: inherit; text-align: center; transition: all 0.15s;
+}
+.reminder-who-btn.selected {
+  background: var(--papa-bg); border-color: var(--papa-border); color: var(--papa);
+}
+.reminder-timing-btn.selected {
+  background: var(--papa-bg); border-color: var(--papa-border); color: var(--papa);
+}

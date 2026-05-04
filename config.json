@@ -6,5 +6,6 @@
   "privatePasswords": {
     "papa_private": "0728",
     "mama_private": "0804"
-  }
+  },
+  "vapidPublicKey": "BAYB8trdy5eitxunAKeo4XaNZtd5_4dfV8785x9RIgJoybz5TubbdrU7RxeOfhXXXVxmDX0WGCwsjkhRacmeZDQ"
 }

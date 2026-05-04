@@ -106,6 +106,15 @@ var addReturnTime     = null; // '18:30' 形式
 var addNeedsDinner    = false;
 var addPlace          = null; // 場所・住所（任意）
 
+// 画像添付状態
+var addImageFiles = []; // File[] (新規追加)
+var addImageUrls  = []; // string[] (既存URL、編集時)
+
+// リマインド状態
+var addReminderEnabled = false;
+var addReminderTargets = []; // ['papa'] | ['mama'] | ['papa','mama']
+var addReminderTiming  = ['prev_day']; // 'prev_day' | 'morning' | 'one_hour'
+
 // 詳細モーダル状態
 var activeSchedule = null;
 
@@ -567,6 +576,21 @@ function openAddModal(ds, member) {
   document.getElementById('officeLocationCustom').value = '';
   document.getElementById('tripDestCustom').value = '';
 
+  // 画像リセット
+  addImageFiles = [];
+  addImageUrls  = [];
+  document.getElementById('imageFileInput').value = '';
+  document.getElementById('imageThumbnailRow').innerHTML = '';
+
+  // リマインドリセット
+  addReminderEnabled = false;
+  addReminderTargets = [];
+  addReminderTiming  = ['prev_day'];
+  document.getElementById('reminderToggle').checked = false;
+  document.getElementById('reminderSettings').classList.add('hidden');
+  renderReminderWhoButtons();
+  renderReminderTimingButtons();
+
   // メンバーボタン
   document.querySelectorAll('.member-btn').forEach(function (btn) {
     btn.classList.toggle('selected', btn.dataset.member === addMember);
@@ -719,6 +743,21 @@ function updateWorkFields() {
   }
   document.getElementById('returnTimeInput').value    = addReturnTime || '';
   document.getElementById('needsDinnerCheck').checked = addNeedsDinner;
+
+  // 画像読み込み
+  addImageFiles = [];
+  addImageUrls  = (s.image_urls || []).slice();
+  document.getElementById('imageFileInput').value = '';
+  renderImageThumbnails();
+
+  // リマインド読み込み
+  addReminderEnabled = !!s.reminder_enabled;
+  addReminderTargets = (s.reminder_targets || []).slice();
+  addReminderTiming  = (s.reminder_timing && s.reminder_timing.length) ? s.reminder_timing.slice() : ['prev_day'];
+  document.getElementById('reminderToggle').checked = addReminderEnabled;
+  document.getElementById('reminderSettings').classList.toggle('hidden', !addReminderEnabled);
+  renderReminderWhoButtons();
+  renderReminderTimingButtons();
 }
 
 function renderOfficeLocSelector() {
@@ -784,6 +823,10 @@ async function saveSchedule() {
     needsDinner = document.getElementById('needsDinnerCheck').checked;
   }
 
+  if (addReminderEnabled && addReminderTargets.length === 0) {
+    showToast('通知する相手を選んでください'); return;
+  }
+
   var record = {
     date:             addDate,
     date_end:         addDateEnd || null,
@@ -799,12 +842,15 @@ async function saveSchedule() {
     return_time:      returnTime,
     needs_dinner:     needsDinner,
     place:            document.getElementById('placeInput').value.trim() || null,
+    reminder_enabled: addReminderEnabled,
+    reminder_targets: addReminderTargets,
+    reminder_timing:  addReminderTiming,
   };
 
   try {
     var r;
     if (editingSchedule) {
-      // 編集：UPDATE
+      // 編集：UPDATE（画像は後で更新するため一旦既存URLを維持）
       r = await db.from('schedules')
         .update(record)
         .eq('id', editingSchedule.id)
@@ -814,17 +860,37 @@ async function saveSchedule() {
       record.confirmed        = false;
       record.wants_discussion = false;
       record.comment          = null;
+      record.image_urls       = [];
       r = await db.from('schedules').insert(record).select().single();
     }
 
     if (r.error) throw r.error;
+    var saved = r.data;
 
-    updateCache(r.data);
+    // 画像アップロード処理
+    var uploadedUrls = [];
+    if (addImageFiles.length > 0) {
+      showToast('画像をアップロード中…');
+      uploadedUrls = await uploadImages(addImageFiles, saved.id);
+    }
+    var finalUrls = addImageUrls.concat(uploadedUrls);
+    var origUrls  = (editingSchedule && editingSchedule.image_urls) || [];
+    var imagesChanged = addImageFiles.length > 0 ||
+      JSON.stringify(finalUrls.slice().sort()) !== JSON.stringify(origUrls.slice().sort());
+    if (imagesChanged) {
+      var imgR = await db.from('schedules')
+        .update({ image_urls: finalUrls })
+        .eq('id', saved.id)
+        .select().single();
+      if (!imgR.error) saved = imgR.data;
+    }
+
+    updateCache(saved);
     closeAddModal();
     render();
     showToast(editingSchedule ? '更新しました ✓' : '保存しました ✓');
 
-    setTimeout(function () { openDetailModal(r.data); }, 320);
+    setTimeout(function () { openDetailModal(saved); }, 320);
   } catch (e) {
     console.error('saveSchedule error:', e);
     showToast('保存に失敗しました');
@@ -904,6 +970,25 @@ function renderDetailBody(s, body) {
         '</div>';
     }
     body.appendChild(workInfo);
+  }
+
+  // 画像サムネイル
+  if (s.image_urls && s.image_urls.length > 0) {
+    var imgWrap = document.createElement('div');
+    imgWrap.className = 'detail-images';
+    s.image_urls.forEach(function(url) {
+      var thumb = document.createElement('div');
+      thumb.className = 'detail-thumb';
+      var img = document.createElement('img');
+      img.src = url;
+      img.alt = '画像';
+      (function(u) {
+        thumb.addEventListener('click', function() { openLightbox(u); });
+      })(url);
+      thumb.appendChild(img);
+      imgWrap.appendChild(thumb);
+    });
+    body.appendChild(imgWrap);
   }
 
   // 確認済みバッジ
@@ -1068,6 +1153,10 @@ async function onDelete(s) {
     var r = await db.from('schedules').delete().eq('id', s.id);
     if (r.error) throw r.error;
 
+    if (s.image_urls && s.image_urls.length > 0) {
+      deleteImages(s.image_urls);
+    }
+
     schedules = schedules.filter(function (x) { return x.id !== s.id; });
     closeDetailModal();
     render();
@@ -1081,6 +1170,165 @@ function updateCache(updated) {
   var idx = schedules.findIndex(function (x) { return x.id === updated.id; });
   if (idx !== -1) schedules[idx] = updated;
   else            schedules.push(updated);
+}
+
+// ===== 画像圧縮 =====
+async function compressImage(file) {
+  return new Promise(function(resolve) {
+    var img = new Image();
+    var blobUrl = URL.createObjectURL(file);
+    img.onload = function() {
+      var MAX = 1200;
+      var w = img.width, h = img.height;
+      if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+      if (h > MAX) { w = Math.round(w * MAX / h); h = MAX; }
+      var canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      canvas.toBlob(function(blob) {
+        URL.revokeObjectURL(blobUrl);
+        resolve(blob);
+      }, 'image/jpeg', 0.75);
+    };
+    img.onerror = function() { URL.revokeObjectURL(blobUrl); resolve(null); };
+    img.src = blobUrl;
+  });
+}
+
+// ===== 画像アップロード =====
+async function uploadImages(files, scheduleId) {
+  var urls = [];
+  for (var i = 0; i < files.length; i++) {
+    try {
+      var blob = await compressImage(files[i]);
+      if (!blob) continue;
+      var path = scheduleId + '/' + Date.now() + '_' + i + '.jpg';
+      var r = await db.storage.from('schedule-images').upload(path, blob, { contentType: 'image/jpeg' });
+      if (r.error) { console.error('upload error:', r.error); continue; }
+      var pub = db.storage.from('schedule-images').getPublicUrl(path);
+      urls.push(pub.data.publicUrl);
+    } catch (e) { console.error('upload exception:', e); }
+  }
+  return urls;
+}
+
+// ===== 画像削除（ストレージクリーンアップ）=====
+async function deleteImages(urls) {
+  if (!urls || !urls.length) return;
+  var marker = '/schedule-images/';
+  var paths = urls.map(function(url) {
+    var idx = url.indexOf(marker);
+    return idx !== -1 ? decodeURIComponent(url.slice(idx + marker.length)) : null;
+  }).filter(Boolean);
+  if (paths.length) await db.storage.from('schedule-images').remove(paths);
+}
+
+// ===== 画像サムネイルUI（追加モーダル）=====
+function renderImageThumbnails() {
+  var row = document.getElementById('imageThumbnailRow');
+  row.innerHTML = '';
+
+  // 既存画像（編集時）
+  addImageUrls.forEach(function(url, i) {
+    var item = makeThumbnailItem(url, function() {
+      addImageUrls.splice(i, 1);
+      renderImageThumbnails();
+    });
+    row.appendChild(item);
+  });
+
+  // 新規追加ファイル
+  addImageFiles.forEach(function(file, i) {
+    var previewUrl = URL.createObjectURL(file);
+    var item = makeThumbnailItem(previewUrl, function() {
+      URL.revokeObjectURL(previewUrl);
+      addImageFiles.splice(i, 1);
+      renderImageThumbnails();
+    });
+    row.appendChild(item);
+  });
+}
+
+function makeThumbnailItem(url, onRemove) {
+  var item = document.createElement('div');
+  item.className = 'thumb-item';
+  var img = document.createElement('img');
+  img.src = url;
+  img.alt = '';
+  (function(u) {
+    img.addEventListener('click', function() { openLightbox(u); });
+  })(url);
+  var btn = document.createElement('button');
+  btn.className = 'thumb-remove';
+  btn.textContent = '✕';
+  btn.type = 'button';
+  btn.addEventListener('click', function(e) { e.stopPropagation(); onRemove(); });
+  item.appendChild(img);
+  item.appendChild(btn);
+  return item;
+}
+
+// ===== ライトボックス =====
+function openLightbox(url) {
+  document.getElementById('lightboxImg').src = url;
+  document.getElementById('lightbox').classList.remove('hidden');
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.add('hidden');
+  document.getElementById('lightboxImg').src = '';
+}
+
+// ===== リマインドUI =====
+function renderReminderWhoButtons() {
+  document.querySelectorAll('.reminder-who-btn').forEach(function(btn) {
+    var who = btn.dataset.who;
+    var selected = false;
+    if (who === 'both') {
+      selected = addReminderTargets.indexOf('papa') !== -1 && addReminderTargets.indexOf('mama') !== -1;
+    } else {
+      selected = addReminderTargets.length === 1 && addReminderTargets[0] === who;
+    }
+    btn.classList.toggle('selected', selected);
+  });
+}
+
+function renderReminderTimingButtons() {
+  document.querySelectorAll('.reminder-timing-btn').forEach(function(btn) {
+    btn.classList.toggle('selected', addReminderTiming.indexOf(btn.dataset.timing) !== -1);
+  });
+}
+
+// ===== プッシュ通知購読 =====
+function urlBase64ToUint8Array(base64String) {
+  var padding = '='.repeat((4 - base64String.length % 4) % 4);
+  var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  var raw = window.atob(base64);
+  var arr = new Uint8Array(raw.length);
+  for (var i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+
+async function subscribePush() {
+  if (!cfg.vapidPublicKey || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  try {
+    var reg = await navigator.serviceWorker.ready;
+    var perm = await Notification.requestPermission();
+    if (perm !== 'granted') return;
+    var sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(cfg.vapidPublicKey)
+    });
+    await savePushSubscription(sub);
+    console.log('Push subscription saved for', loginMember);
+  } catch (e) {
+    console.error('subscribePush error:', e);
+  }
+}
+
+async function savePushSubscription(subscription) {
+  var subJson = subscription.toJSON();
+  await db.from('push_subscriptions').delete().eq('member', loginMember);
+  await db.from('push_subscriptions').insert({ member: loginMember, subscription: subJson });
 }
 
 // ===== LINE 共有 =====
@@ -1231,6 +1479,56 @@ function setupEventListeners() {
   // 詳細モーダル
   document.getElementById('detailOverlay').addEventListener('click', closeDetailModal);
   document.getElementById('detailCloseBtn').addEventListener('click', closeDetailModal);
+
+  // 画像ファイル選択
+  document.getElementById('imageFileInput').addEventListener('change', function() {
+    var files = Array.from(this.files);
+    if (addImageFiles.length + addImageUrls.length + files.length > 10) {
+      showToast('画像は10枚まで追加できます');
+      this.value = '';
+      return;
+    }
+    addImageFiles = addImageFiles.concat(files);
+    this.value = '';
+    renderImageThumbnails();
+  });
+
+  // ライトボックス
+  document.getElementById('lightboxBackdrop').addEventListener('click', closeLightbox);
+  document.getElementById('lightboxClose').addEventListener('click', closeLightbox);
+
+  // リマインドトグル
+  document.getElementById('reminderToggle').addEventListener('change', function() {
+    addReminderEnabled = this.checked;
+    document.getElementById('reminderSettings').classList.toggle('hidden', !this.checked);
+  });
+
+  // 「だれに通知」ボタン
+  document.querySelectorAll('.reminder-who-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var who = this.dataset.who;
+      if (who === 'both') {
+        addReminderTargets = ['papa', 'mama'];
+      } else {
+        addReminderTargets = [who];
+      }
+      renderReminderWhoButtons();
+    });
+  });
+
+  // 「いつ通知」ボタン（複数選択）
+  document.querySelectorAll('.reminder-timing-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var timing = this.dataset.timing;
+      var idx = addReminderTiming.indexOf(timing);
+      if (idx !== -1) {
+        if (addReminderTiming.length > 1) addReminderTiming.splice(idx, 1);
+      } else {
+        addReminderTiming.push(timing);
+      }
+      renderReminderTimingButtons();
+    });
+  });
 }
 
 // ===== 初期化 =====
@@ -1271,9 +1569,18 @@ async function handleLogin() {
   }
   document.getElementById('loginScreen').classList.add('hidden');
   await startApp();
+  // プッシュ通知の購読（バックグラウンドで実行）
+  subscribePush();
 }
 
 async function init() {
+  // Service Worker 登録（プッシュ通知用）
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js').catch(function(e) {
+      console.warn('SW registration failed:', e);
+    });
+  }
+
   try {
     var res = await fetch('config.json');
     cfg = await res.json();
