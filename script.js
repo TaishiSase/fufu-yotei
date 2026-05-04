@@ -654,6 +654,21 @@ function openEditModal(s) {
   addPlace       = s.place || null;
   document.getElementById('placeInput').value = s.place || '';
 
+  // 画像読み込み
+  addImageFiles = [];
+  addImageUrls  = (s.image_urls || []).slice();
+  document.getElementById('imageFileInput').value = '';
+  renderImageThumbnails();
+
+  // リマインド読み込み
+  addReminderEnabled = !!s.reminder_enabled;
+  addReminderTargets = (s.reminder_targets || []).slice();
+  addReminderTiming  = (s.reminder_timing && s.reminder_timing.length) ? s.reminder_timing.slice() : ['prev_day'];
+  document.getElementById('reminderToggle').checked = addReminderEnabled;
+  document.getElementById('reminderSettings').classList.toggle('hidden', !addReminderEnabled);
+  renderReminderWhoButtons();
+  renderReminderTimingButtons();
+
   renderEventTypeGrid();
   renderTimeTypeGrid();
   updateWorkFields();
@@ -743,21 +758,6 @@ function updateWorkFields() {
   }
   document.getElementById('returnTimeInput').value    = addReturnTime || '';
   document.getElementById('needsDinnerCheck').checked = addNeedsDinner;
-
-  // 画像読み込み
-  addImageFiles = [];
-  addImageUrls  = (s.image_urls || []).slice();
-  document.getElementById('imageFileInput').value = '';
-  renderImageThumbnails();
-
-  // リマインド読み込み
-  addReminderEnabled = !!s.reminder_enabled;
-  addReminderTargets = (s.reminder_targets || []).slice();
-  addReminderTiming  = (s.reminder_timing && s.reminder_timing.length) ? s.reminder_timing.slice() : ['prev_day'];
-  document.getElementById('reminderToggle').checked = addReminderEnabled;
-  document.getElementById('reminderSettings').classList.toggle('hidden', !addReminderEnabled);
-  renderReminderWhoButtons();
-  renderReminderTimingButtons();
 }
 
 function renderOfficeLocSelector() {
