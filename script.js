@@ -547,7 +547,7 @@ function openAddModal(ds, member) {
   addTimeType  = 'all_day';
 
   document.getElementById('addModalTitle').textContent = '予定を追加';
-  document.getElementById('modalDateDisplay').textContent = formatDateJa(parseDate(ds));
+  document.getElementById('dateStartInput').value = ds;
 
   // 複数日リセット
   var toggle = document.getElementById('multiDayToggle');
@@ -610,7 +610,7 @@ function openEditModal(s) {
   addTimeType  = s.time_type || 'all_day';
 
   document.getElementById('addModalTitle').textContent = '予定を編集';
-  document.getElementById('modalDateDisplay').textContent = formatDateJa(parseDate(s.date));
+  document.getElementById('dateStartInput').value = s.date;
 
   // 複数日
   var toggle = document.getElementById('multiDayToggle');
@@ -775,6 +775,7 @@ function renderTripDestSelector() {
 }
 
 async function saveSchedule() {
+  addDate = document.getElementById('dateStartInput').value || addDate;
   if (!addDate)      { showToast('日付が選択されていません'); return; }
   if (!addMember)    { showToast('だれかを選んでください'); return; }
   if (!addEventType) { showToast('内容を選んでください'); return; }
@@ -1418,6 +1419,12 @@ function setupEventListeners() {
       addDateEnd = null;
       document.getElementById('dateEndInput').value = '';
     }
+  });
+
+  // 開始日変更
+  document.getElementById('dateStartInput').addEventListener('change', function () {
+    addDate = this.value || null;
+    document.getElementById('dateEndInput').min = this.value || '';
   });
 
   // 終了日選択
