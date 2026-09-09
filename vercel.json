@@ -16,5 +16,12 @@
       "path": "/api/remind",
       "schedule": "0 22 * * *"
     }
+  ],
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "https://sase-apps.vercel.app/calendar/",
+      "permanent": false
+    }
   ]
 }
