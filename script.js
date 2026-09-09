@@ -225,7 +225,10 @@ function getVisibleSchedulesForDate(ds) {
 }
 
 // ===== データ =====
+var scheduleRequestId = 0;
 async function loadSchedules() {
+  var requestId = ++scheduleRequestId;
+  document.getElementById("scheduleLoadStatus").textContent = "予定を更新中…";
   var year  = navDate.getFullYear();
   var month = navDate.getMonth();
   var start, end;
@@ -245,12 +248,16 @@ async function loadSchedules() {
     var r = await db.from('schedules')
       .select('*')
       .lte('date', dateStr(end))
-      .gte('date', dateStr(start))
+      .or('date.gte.' + dateStr(start) + ',date_end.gte.' + dateStr(start))
       .order('date')
       .order('created_at');
-    if (!r.error) schedules = r.data || [];
+    if (requestId !== scheduleRequestId) return;
+    if (r.error) throw r.error;
+    schedules = r.data || [];
+    document.getElementById('scheduleLoadStatus').textContent = '';
   } catch (e) {
     console.error('loadSchedules error:', e);
+    if(requestId === scheduleRequestId) document.getElementById('scheduleLoadStatus').textContent = '更新できませんでした。表示中の情報は最新でない可能性があります。';
   }
 }
 
@@ -259,6 +266,7 @@ function render() {
   updateCalTitle();
   if (view === 'month') renderMonth();
   else                   renderWeek();
+  renderAgenda();
 }
 
 function updateCalTitle() {
@@ -1077,6 +1085,13 @@ function renderDetailBody(s, body) {
     });
   })(s);
   detailActionRow.appendChild(editBtn);
+  var copyBtn=document.createElement('button'); copyBtn.className='edit-btn';copyBtn.textContent='複製する';
+  copyBtn.onclick=function(){
+    closeDetailModal();
+    var copy=Object.assign({},s,{id:null,date:dateStr(new Date()),date_end:null,image_urls:[],confirmed:false,confirmed_at:null,comment:null,wants_discussion:false});
+    if(s.is_private && s.is_private!==filterMember){ showToast('複製するには同じプライベートフィルターを開いてください');return; }
+    openEditModal(copy);editingSchedule=null;document.getElementById('addModalTitle').textContent='予定を複製 · 日付を選んで保存';
+  };detailActionRow.appendChild(copyBtn);
 
   var deleteBtn = document.createElement('button');
   deleteBtn.className = 'delete-btn';
@@ -1360,10 +1375,11 @@ function shareToLine(s, isDiscuss) {
 // ===== ナビゲーション =====
 async function navigate(dir) {
   if (view === 'month') {
-    navDate.setMonth(navDate.getMonth() + dir);
+    navDate = new Date(navDate.getFullYear(),navDate.getMonth()+dir,1);
   } else {
     navDate.setDate(navDate.getDate() + dir * 7);
   }
+  render();
   await loadSchedules();
   render();
 }
@@ -1541,8 +1557,12 @@ function setupEventListeners() {
 // ===== 初期化 =====
 async function startApp() {
   setupEventListeners();
-  await loadSchedules();
-  render();
+  var params=new URLSearchParams(location.search), date=params.get('date');
+  if(date && /^\d{4}-\d{2}-\d{2}$/.test(date) && !isNaN(parseDate(date))) navDate=parseDate(date);
+  await loadSchedules();render();
+  var schedule=schedules.find(function(s){return s.id===params.get('schedule') && isEventVisible(s);});
+  if(schedule) openDetailModal(schedule);
+  else if(params.get('action')==='add') openAddModal(dateStr(new Date()),null);
 }
 
 var loginMember = null; // 'papa' | 'mama'
@@ -1619,4 +1639,18 @@ async function init() {
   await startApp();
 }
 
+function renderAgenda(){
+  var start=view==='week'?dateStr(getWeekStart(navDate)):dateStr(new Date(navDate.getFullYear(),navDate.getMonth(),1));
+  var endDate=view==='week'?getWeekStart(navDate):new Date(navDate.getFullYear(),navDate.getMonth()+1,0);
+  if(view==='week')endDate.setDate(endDate.getDate()+6);
+  var end=dateStr(endDate), list=schedules.filter(function(s){return isEventVisible(s) && s.date<=end && (s.date_end||s.date)>=start;});
+  var host=document.getElementById('agendaList');host.replaceChildren();
+  document.getElementById('agendaTitle').textContent=view==='week'?'この週の予定':'この月の予定';
+  if(!list.length){host.textContent='登録された予定はありません';return;}
+  list.forEach(function(s){var b=document.createElement('button');b.className='agenda-row';
+    var member=MEMBERS[s.member]||MEMBERS.all;
+    b.innerHTML='<span class="agenda-date">'+esc(getDateRangeLabel(s))+'</span><strong>'+esc(member.label)+' · '+esc(s.event_label||s.event_type)+'</strong><span>'+esc(getTimeLabel(s))+(s.return_time?' · 帰宅 '+esc(s.return_time.slice(0,5)):'')+'</span><small>'+(s.confirmed?'確認済み':'確認待ち')+'</small>';
+    b.onclick=function(){openDetailModal(s);};host.appendChild(b);
+  });
+}
 init();

@@ -14,8 +14,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css?v=8">
+<link rel="stylesheet" href="family-ux.css">
 </head>
 <body>
+<div class="family-bar"><a href="https://sase-apps.vercel.app/">‹ 佐瀬家ホーム</a><a href="https://sase-apps.vercel.app/#apps">アプリ一覧</a></div><p id="familyStatus" class="family-status" role="status"></p>
   <div class="bg-orbs">
     <div class="orb orb1"></div>
     <div class="orb orb2"></div>
@@ -75,6 +77,7 @@
       </div>
     </div>
 
+    <p id="scheduleLoadStatus" role="status" class="ux-status"></p><section class="agenda"><h2 id="agendaTitle">この週の予定</h2><div id="agendaList"></div></section>
     <!-- FAB -->
     <button class="fab" id="fab" title="予定を追加">＋</button>
   </div>
@@ -185,6 +188,7 @@
         </div>
 
         <!-- 場所（任意） -->
+        <details id="scheduleExtras" class="ux-details"><summary>場所・画像・リマインド</summary>
         <div class="form-section">
           <div class="form-label">📍 場所（任意）</div>
           <input type="text" id="placeInput" class="custom-input" placeholder="場所の名称や住所を入力">
@@ -223,6 +227,7 @@
           </div>
         </div>
 
+        </details>
         <button class="primary-btn" id="saveBtn">保存する</button>
       </div>
     </div>
@@ -290,5 +295,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="script.js?v=8"></script>
+<script src="family-ux.js"></script>
 </body>
 </html>
